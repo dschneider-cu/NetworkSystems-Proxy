@@ -1,0 +1,6 @@
+/obj
+/test
+/proxy
+/cache/*
+*.o
+*.gch

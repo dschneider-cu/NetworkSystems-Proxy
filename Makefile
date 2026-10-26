@@ -1,19 +1,32 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -O2
-LIBS = -lssl -lcrypto
+CC     := gcc
+CFLAGS := -Wall -Wextra -O2
+LIBS   := -lssl -lcrypto
 
-TARGET = proxy
-SRCS = proxy.c
+TARGET      := proxy
+CACHE_DIR   := cache
 
-all: $(TARGET)
+# Find all c files in src/
+SRCS = $(shell find src -name "*.c")
+# Place .o files in obj/
+OBJS = $(patsubst src/%.c, obj/%.o, $(SRCS))
 
-$(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) -o $(TARGET) $(LIBS)
+.PHONY: all proxy test clean
 
-debug:
-	$(MAKE) CFLAGS="$(CFLAGS) -g -DDEBUG"
+all: proxy
+
+# Build proxy binary
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+# Build client binary
+$(CLIENT_BIN): $(CLIENT_OBJS)
+	mkdir -p $(CLIENT_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Compile all .c to .o
+obj/%.o: src/%.c
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(TARGET)
-
-
+	rm -rf $(TARGET) obj $(CACHE_DIR)/*
