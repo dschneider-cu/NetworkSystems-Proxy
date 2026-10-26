@@ -1,0 +1,113 @@
+#ifndef UTILS_H
+#define UTILS_H
+
+#include <string.h>
+#include <errno.h>
+#include <stdbool.h>
+
+/** Smaller of a and b */
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+/** Larger of a nd b */
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+
+/** Printf to stdout with function name and trailing newline. */
+#define log(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
+/** Printf to stderr with function name and trailing newline. */
+#define elog(fmt, ...) fprintf(stderr, "[%s] " fmt "\n", __func__, ##__VA_ARGS__)
+/** Printf to stderr with the current errno message. */
+#define pelog(fmt, ...) elog(fmt ": %s", ##__VA_ARGS__, strerror(errno))
+
+extern bool VERBOSE;
+/** Printf to stdout if VERBOSE is true. */
+#define vlog(...) do { if (VERBOSE) log(__VA_ARGS__); } while (0)
+/** Printf to stderr if VERBOSE is true. */
+#define evlog(...) do { if (VERBOSE) elog(__VA_ARGS__); } while (0)
+/** Printf to stderr with the current errno message if VERBOSE is true */
+#define pevlog(...) do { if (VERBOSE) pelog(__VA_ARGS__); } while (0)
+
+#define HEXDUMP_COL_WIDTH 24
+
+
+/**
+ * Parses a number from a command line argument. Prints an error message and returns -1 if
+ * it fails.
+ * 
+ * @param s input string
+ * @return parsed int or -1
+ */
+int parse_int(char *s);
+
+/** Initialize RNG */
+void init_rand();
+
+/** Get a random double between 0.0 (inclusive) and 1.0 (exclusive) */
+double get_rand();
+
+/** 
+ * Shuffle integers between start (inclusive) and end (exclusive). `arr` should be an array with
+ * at least `(end-start)*sizeof(int)` allocated. Only positive integers, pretty please.
+ */
+void fill_with_shuffled_range(int *arr, int start, int end);
+
+/**
+ * Print bytes of `data` as Hex and ASCII. If a character isn't valid ASCII, prints a dot. Hex will
+ * be on the left and ascii on the right.
+ * 
+ * @param data pointer to the data
+ * @param data_len number of bytes to print
+ */
+void print_hexdump(const void *data, int data_len);
+
+/**
+ * Modifies a string to strip whitespace from the right side of a null terminated string. 
+ * 
+ * @return new length of the string
+ */
+int rstrip(char *str);
+
+/**
+ * Returns a new pointer to `str` with leading whitespace removed.
+ * 
+ * @param str String pointer
+ * @param out_num_stripped Output param for the number of characters stripped. Pass NULL to discard.
+ * @return New pointer to the string
+ */
+const char* lstrip(const char *str, int *out_num_stripped);
+
+/**
+ * Strips leading and trailing whitespace from a string. Modifies the string to truncate the right
+ * side, and returns a pointer to the new start of the string. This is a combination of lstrip
+ * and rstrip.
+ * 
+ * @param str String pointer
+ * @param out_new_len New length of the string (pass NULL to discard)
+ * @return New pointer to the string
+ */
+const char *strip(char *str, int *out_new_len);
+
+/**
+ * Returns true if s1 and s2 are equal. Both must be null terminated.
+ * NULL strings are considered not equal.
+ */
+bool streq(const char *s1, const char *s2);
+
+/**
+ * Returns true if the first `n` characters of s1 and s2 are equal.
+ * NULL strings are considered not equal.
+ */
+bool strneq(const char *s1, const char *s2, int n);
+
+/**
+ * Returns true if s1 and s2 are equal, ignoring case. Both must be null terminated.
+ * NULL strings are considered not equal.
+ */
+bool streq_icase(const char *s1, const char *s2);
+
+/**
+ * Returns true if string `s` contains only characters in `chset`.
+ * Returns false if either are NULL.
+ */
+bool is_str_allin(const char *s, size_t len, const char *chset);
+
+#endif
