@@ -5,61 +5,82 @@
 #include "socket.h"
 #include "../utils.h"
 
-int create_socket(char *ip, uint16_t port, addr_t *out_addr) {
+bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_) {
     // Configure server ipv4 address
-    out_addr->sin_family = AF_INET;
-	out_addr->sin_port = htons(port);
+    out_sock->addr.sin_family = AF_INET;
+	out_sock->addr.sin_port = htons(port);
 
     // Convert IP from string & set server IP
-    if (ip != NULL) {
-        if (inet_pton(AF_INET, ip, &out_addr->sin_addr) <= 0) {
-            elog("Error: bad server address: %s", ip);
-            return -1;
-        }
-    } else {
-        out_addr->sin_addr.s_addr = INADDR_ANY;
+    if (inet_pton(AF_INET, ip, &out_sock->addr.sin_addr) <= 0) {
+        elog("Error: bad IP address: %s", ip);
+        return false;
     }
 
-    // Create socket
-    int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    // Create socket (TCP)
+    int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
-        pelog("Something bad happened");
-        return -1;
+        pelog("Error creating socket");
+        return false;
     }
 
     // Bind socket to port
-    if (ip == NULL) {
-        if (bind(sock_fd, (struct sockaddr *)out_addr, sizeof(addr_t)) < 0) {
+    if (bind_) {
+        // Enable SO_REUSEADDR; prevents "Address already in use" after closing the server and
+        // restarting
+        int opt = 1;
+        if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+            perror("Error setting socket option");
+            return false;
+        }
+
+        if (bind(sock_fd, (struct sockaddr *)&out_sock->addr, sizeof(addr_t)) < 0) {
             pelog("Error binding socket");
             close(sock_fd);
-            return -1;
+            return false;
         }
         vlog(
             "Socket %d created & bound to %s:%d",
-            sock_fd, get_ip_str(out_addr), get_porth(out_addr)
+            sock_fd, get_ip_str(&out_sock->addr), get_porth(&out_sock->addr)
         );
     } else {
         vlog(
             "Socket %d created for %s:%d",
-            sock_fd, get_ip_str(out_addr), get_porth(out_addr)
+            sock_fd, get_ip_str(&out_sock->addr), get_porth(&out_sock->addr)
         );
     }
 
-    return sock_fd;
+    out_sock->fd = sock_fd;
+    out_sock->is_bound = bind_;
+    out_sock->is_listening = false;
+    return true;
 }
 
-void close_socket(int sock_fd) {
-    close(sock_fd);
-    vlog("Socket %d closed", sock_fd);
+bool socket_listen(socket_t *sock, int max_connections) {
+    if (!sock->is_bound) {
+        elog("Socket must be bound before listening");
+        return false;
+    }
+    if (listen(sock->fd, max_connections) < 0) {
+        pelog("Error listening to socket");
+        sock->is_listening = false;
+        return false;
+    }
+    sock->is_listening = true;
+    return true;
+}
+
+void close_socket(const socket_t *sock) {
+    close(sock->fd);
+    vlog("Socket %d closed", sock->fd);
 }
 
 int socket_recv_timeout(
-    int sock_fd, void *buf, int len, addr_t *out_src_addr, int timeout_sec
+    const socket_t *sock, void *buf, int len, addr_t *out_src_addr, int timeout_sec
 ) {
     // set up the file descriptor set
     fd_set fds;
     FD_ZERO(&fds);
-    FD_SET(sock_fd, &fds);
+    FD_SET(sock->fd, &fds);
     
     // set up the struct timeval for the timeout
     struct timeval tv;
@@ -67,35 +88,35 @@ int socket_recv_timeout(
     tv.tv_usec = 0;
 
     // wait until timeout or data received
-    int n = select(sock_fd + 1, &fds, NULL, NULL, &tv);
+    int n = select(sock->fd + 1, &fds, NULL, NULL, &tv);
     if (n == 0) { return SOCKET_TIMEOUT; }
     if (n == -1) { return SOCKET_ERR; }
 
     // data must be here, so do a normal recv()
-    return socket_recv(sock_fd, buf, len, out_src_addr);
+    return socket_recv(sock->fd, buf, len, out_src_addr);
 }
 
-int socket_recv(int sock_fd, void *buf, int len, addr_t *out_src_addr) {
+int socket_recv(const socket_t *sock, void *buf, int len, addr_t *out_src_addr) {
     socklen_t src_addrlen = sizeof(addr_t);
     return recvfrom(
-        sock_fd, buf, len, 0,
+        sock->fd, buf, len, 0,
         (struct sockaddr *)out_src_addr, &src_addrlen
     );
 }
 
-int socket_send(int sock_fd, const void *buf, int len, const addr_t *dst_addr) {
+int socket_send(const socket_t *sock, const void *buf, int len, const addr_t *dst_addr) {
     return sendto(
-        sock_fd, buf, len, 0,
+        sock->fd, buf, len, 0,
         (const struct sockaddr *)dst_addr, sizeof(addr_t)
     );
 }
 
-void socket_recv_flush(int sock_fd) {
+void socket_recv_flush(const socket_t *sock) {
     char buffer[1024];
     ssize_t n;
     
     // Read and discard until the buffer is empty
-    while ((n = recv(sock_fd, buffer, sizeof(buffer), MSG_DONTWAIT)) > 0) {}
+    while ((n = recv(sock->fd, buffer, sizeof(buffer), MSG_DONTWAIT)) > 0) {}
 }
 
 void make_addr(addr_t *out_addr, uint32_t ip, uint16_t port) {

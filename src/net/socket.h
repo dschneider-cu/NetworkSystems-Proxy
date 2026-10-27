@@ -2,6 +2,7 @@
 #define SOCKET_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -12,20 +13,42 @@
 /** Helper type alias for ipv4 address struct */
 typedef struct sockaddr_in addr_t;
 
-/**
- * Creates a socket and returns the socket file descriptor. Prints and error message and returns -1
- * if the socket can't be created.
- * 
- * @param ip Socket IP address string in "xxx.xxx.xxx.xxx" format. If this is NULL, `INADDR_ANY`
- *      will be used and the socket will bind to the port.
- * @param port Port
- * @param out_addr Output parameter for the address structure
- * @return Socket file descriptor or -1 if an error occurs.
- */
-int create_socket(char *ip, uint16_t port, addr_t *out_addr);
+typedef struct {
+    /** File descriptor for the socket */
+    int fd;
+    /** Server address (my address if I am a server) */
+    addr_t addr;
+    /** Whether the socket is bound to the address (i.e. true if I am a server) */
+    bool is_bound;
+    /** Whether the socket is listening to TCP connections */
+    bool is_listening;
+} socket_t;
 
-/** Closes the given socket */
-void close_socket(int sock_fd);
+/**
+ * Creates a TCP socket and fills a socket_t structure with the socket info. Returns whether the
+ * socket was successfully created.
+ * 
+ * @param out_sock Uninitialized socket structure to fill
+ * @param ip Socket IP address string in "xxx.xxx.xxx.xxx" format.
+ * @param port Socket port
+ * @param bind Whether to bind the port to the socket - servers should bind the port, clients
+ *      should not.
+ * @return Whether the socket was successfully created
+ */
+bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_);
+
+/**
+ * Listen for connections on the socket. Only available for TCP sockets. Socket must be bound
+ * (server socket) before listening.
+ * 
+ * @param sock Socket
+ * @param max_connections Maximum number of connections before more connections are refused
+ * @return Whether the socket is successfully listening
+ */
+bool socket_listen(socket_t *sock, int max_connections);
+
+/** Closes the given socket. Do not use `sock` again after closing. */
+void close_socket(const socket_t *sock);
 
 /**
  * Receive bytes from the socket, with a timeout.
@@ -39,17 +62,17 @@ void close_socket(int sock_fd);
  *      error, and `SOCKET_TIMEOUT` on timeout.
  */
 int socket_recv_timeout(
-    int sock_fd, void *buf, int len, addr_t *out_src_addr, int timeout_sec
+    const socket_t *sock, void *buf, int len, addr_t *out_src_addr, int timeout_sec
 );
 
 /** Receive bytes from the socket. Wrapper for `recvfrom()` */
-int socket_recv(int sock_fd, void *buf, int len, addr_t *out_src_addr);
+int socket_recv(const socket_t *sock, void *buf, int len, addr_t *out_src_addr);
 
 /** Send bytes to the socket. Wrapper for `sendto()`. */
-int socket_send(int sock_fd, const void *buf, int len, const addr_t *dst_addr);
+int socket_send(const socket_t *sock, const void *buf, int len, const addr_t *dst_addr);
 
 /** Empties the OS socket receive buffer */
-void socket_recv_flush(int sock_fd);
+void socket_recv_flush(const socket_t *sock);
 
 /**
  * Populates an addr_t given an IP address and port.
