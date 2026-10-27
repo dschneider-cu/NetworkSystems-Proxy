@@ -10,18 +10,24 @@
 #define SOCKET_ERR -1
 #define SOCKET_TIMEOUT -2
 
+#define SOCKET_MAX_TCP_CONNECTIONS 3
+
 /** Helper type alias for ipv4 address struct */
 typedef struct sockaddr_in addr_t;
+
+typedef enum {
+    SOCKET_CLIENT,
+    SOCKET_SERVER
+} socktype_t;
 
 typedef struct {
     /** File descriptor for the socket */
     int fd;
-    /** Server address (my address if I am a server) */
+    /** Socket type (SOCKET_CLIENT or SOCKET_SERVER) */
+    socktype_t type;
+    /** Socket address (source address if this is a server socket; destination address if this is a
+     *  client socket) */
     addr_t addr;
-    /** Whether the socket is bound to the address (i.e. true if I am a server) */
-    bool is_bound;
-    /** Whether the socket is listening to TCP connections */
-    bool is_listening;
 } socket_t;
 
 /**
@@ -29,23 +35,24 @@ typedef struct {
  * socket was successfully created.
  * 
  * @param out_sock Uninitialized socket structure to fill
- * @param ip Socket IP address string in "xxx.xxx.xxx.xxx" format.
+ * @param ip Socket IP address string in "xxx.xxx.xxx.xxx" format. "0.0.0.0" should generally be
+ *      used for server sockets.
  * @param port Socket port
- * @param bind Whether to bind the port to the socket - servers should bind the port, clients
- *      should not.
+ * @param type Socket type (SOCK_CLIENT or SOCK_SERVER). Server sockets bind to the given IP and
+ *      listens for connections.
  * @return Whether the socket was successfully created
  */
-bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_);
+bool create_socket(socket_t *out_sock, char *ip, uint16_t port, socktype_t type);
 
 /**
- * Listen for connections on the socket. Only available for TCP sockets. Socket must be bound
- * (server socket) before listening.
+ * Waits for TCP connections on a given server socket, and outputs a client socket when a
+ * connection is accepted.
  * 
- * @param sock Socket
- * @param max_connections Maximum number of connections before more connections are refused
- * @return Whether the socket is successfully listening
+ * @param server_sock Server socket
+ * @param out_client_sock Output parameter for the accepted client socket
+ * @return Whether the accept succeeded
  */
-bool socket_listen(socket_t *sock, int max_connections);
+bool socket_accept(const socket_t *server_sock, socket_t *out_client_sock);
 
 /** Closes the given socket. Do not use `sock` again after closing. */
 void close_socket(const socket_t *sock);

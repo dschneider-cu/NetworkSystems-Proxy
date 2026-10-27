@@ -5,7 +5,7 @@
 #include "socket.h"
 #include "../utils.h"
 
-bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_) {
+bool create_socket(socket_t *out_sock, char *ip, uint16_t port, socktype_t type) {
     // Configure server ipv4 address
     out_sock->addr.sin_family = AF_INET;
 	out_sock->addr.sin_port = htons(port);
@@ -23,16 +23,17 @@ bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_) {
         return false;
     }
 
-    // Bind socket to port
-    if (bind_) {
+    if (type == SOCKET_SERVER) {
         // Enable SO_REUSEADDR; prevents "Address already in use" after closing the server and
         // restarting
         int opt = 1;
         if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-            perror("Error setting socket option");
+            pelog("Error setting socket option");
+            close(sock_fd);
             return false;
         }
-
+        
+        // Bind socket to address & port
         if (bind(sock_fd, (struct sockaddr *)&out_sock->addr, sizeof(addr_t)) < 0) {
             pelog("Error binding socket");
             close(sock_fd);
@@ -42,6 +43,14 @@ bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_) {
             "Socket %d created & bound to %s:%d",
             sock_fd, get_ip_str(&out_sock->addr), get_porth(&out_sock->addr)
         );
+
+        // Listen for client connections
+        if (listen(sock_fd, SOCKET_MAX_TCP_CONNECTIONS) < 0) {
+            pelog("Error listening to socket");
+            close(sock_fd);
+            return false;
+        }
+        vlog("Listening on port %d...", get_porth(&out_sock->addr));
     } else {
         vlog(
             "Socket %d created for %s:%d",
@@ -50,22 +59,31 @@ bool create_socket(socket_t *out_sock, char *ip, uint16_t port, bool bind_) {
     }
 
     out_sock->fd = sock_fd;
-    out_sock->is_bound = bind_;
-    out_sock->is_listening = false;
+    out_sock->type = type;
     return true;
 }
 
-bool socket_listen(socket_t *sock, int max_connections) {
-    if (!sock->is_bound) {
-        elog("Socket must be bound before listening");
+bool socket_accept(const socket_t *server_sock, socket_t *out_client_sock) {
+    if (server_sock->type != SOCKET_SERVER) {
+        elog("accept() can only be used on server sockets");
         return false;
     }
-    if (listen(sock->fd, max_connections) < 0) {
-        pelog("Error listening to socket");
-        sock->is_listening = false;
+
+    int client_len = sizeof(out_client_sock->addr);
+    int client_fd = accept(
+        server_sock->fd,
+        (struct sockaddr *)&out_client_sock->addr,
+        &client_len
+    );
+
+    if (client_fd < 0) {
+        pelog("Error accepting connection");
         return false;
     }
-    sock->is_listening = true;
+
+    vlog("Connection accepted: %d", client_fd);
+    out_client_sock->fd = client_fd;
+    out_client_sock->type = SOCKET_CLIENT;
     return true;
 }
 
