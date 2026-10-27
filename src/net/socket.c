@@ -5,7 +5,7 @@
 #include "socket.h"
 #include "../utils.h"
 
-bool create_socket(socket_t *out_sock, char *ip, uint16_t port, socktype_t type) {
+bool create_socket(socket_t *out_sock, const char *ip, uint16_t port, socktype_t type) {
     // Configure server ipv4 address
     out_sock->addr.sin_family = AF_INET;
 	out_sock->addr.sin_port = htons(port);
@@ -69,7 +69,7 @@ bool socket_accept(const socket_t *server_sock, socket_t *out_client_sock) {
         return false;
     }
 
-    int client_len = sizeof(out_client_sock->addr);
+    socklen_t client_len = sizeof(out_client_sock->addr);
     int client_fd = accept(
         server_sock->fd,
         (struct sockaddr *)&out_client_sock->addr,
@@ -111,7 +111,7 @@ int socket_recv_timeout(
     if (n == -1) { return SOCKET_ERR; }
 
     // data must be here, so do a normal recv()
-    return socket_recv(sock->fd, buf, len, out_src_addr);
+    return socket_recv(sock, buf, len, out_src_addr);
 }
 
 int socket_recv(const socket_t *sock, void *buf, int len, addr_t *out_src_addr) {
@@ -174,4 +174,19 @@ uint16_t get_porth(const addr_t *addr) {
 
 const char *get_ip_str(const addr_t *addr) {
     return ip_to_str(get_ip(addr));
+}
+
+void print_socket(const socket_t *sock) {
+    const char *type;
+    if (sock->type == SOCKET_CLIENT) {
+        type = "Client";
+    } else if (sock->type == SOCKET_SERVER) {
+        type = "Server";
+    } else {
+        type = "Unknown";
+    }
+    printf(
+        "- Socket -\nAddress: %s:%u\nFD: %d\nType: %s\n",
+        get_ip_str(&sock->addr), get_porth(&sock->addr), sock->fd, type
+    );
 }

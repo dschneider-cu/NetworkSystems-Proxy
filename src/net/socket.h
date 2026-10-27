@@ -42,7 +42,7 @@ typedef struct {
  *      listens for connections.
  * @return Whether the socket was successfully created
  */
-bool create_socket(socket_t *out_sock, char *ip, uint16_t port, socktype_t type);
+bool create_socket(socket_t *out_sock, const char *ip, uint16_t port, socktype_t type);
 
 /**
  * Waits for TCP connections on a given server socket, and outputs a client socket when a
@@ -106,5 +106,8 @@ uint32_t get_iph(const addr_t *addr);
 uint16_t get_porth(const addr_t *addr);
 /** Extract the IP address from an addr_t and convert it to a string. */
 const char *get_ip_str(const addr_t *addr);
+
+/** Debug function to print socket info */
+void print_socket(const socket_t *sock);
 
 #endif
