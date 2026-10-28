@@ -156,3 +156,87 @@ bool is_str_allin(const char *s, size_t len, const char *chset) {
 
     return true;
 }
+
+void linkedlist_init(linkedlist_t *list) {
+    list->head = NULL;
+    list->tail = NULL;
+    list->size = 0;
+}
+
+void linkedlist_push(linkedlist_t *list, void *data) {
+    llnode_t *node = malloc(sizeof(llnode_t));
+    node->data = data;
+    node->next = NULL;
+
+    if (list->size == 0) {
+        list->head = node;
+    } else {
+        list->tail->next = node;
+    }
+    list->tail = node;
+    list->size++;
+}
+
+void linkedlist_free(linkedlist_t *list, bool free_data) {
+    llnode_t *node = list->head;
+    llnode_t *next;
+    while (node != NULL) {
+        next = node->next;
+        if (free_data) { free(node->data); }
+        free(node);
+        node = next;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+    list->size = 0;
+}
+
+int linkedlist_size(const linkedlist_t *list) {
+    return list->size;
+}
+
+void *linkedlist_get(const linkedlist_t *list, int i) {
+    if (i < 0 || i >= list->size) { return NULL; }
+
+    llnode_t *node = list->head;
+    int j = 0;
+    while (j < i) {
+        node = node->next;
+        j++;
+    }
+    return node->data;
+}
+
+void linkedlist_foreach(const linkedlist_t *list, llcallback_t f) {
+    if (f == NULL) { return; }
+
+    llnode_t *node = list->head;
+    int i = 0;
+
+    while (node != NULL) {
+        if (f(i, node->data)) {
+            return;
+        }
+
+        node = node->next;
+        i++;
+    }
+}
+
+void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria) {
+    if (match_fn == NULL) { return NULL; }
+
+    llnode_t *node = list->head;
+    int i = 0;
+    
+    while (node != NULL) {
+        if (match_fn(i, node->data, criteria)) {
+            return node->data;
+        }
+
+        node = node->next;
+        i++;
+    }
+
+    return NULL;
+}

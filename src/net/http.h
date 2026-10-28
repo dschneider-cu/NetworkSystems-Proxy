@@ -2,7 +2,7 @@
 #define HTTP_H
 
 #include <stdbool.h>
-#include "util.h"
+#include "../utils.h"
 
 /** Struct for an HTTP header */
 typedef struct {
@@ -22,11 +22,12 @@ typedef struct {
     int nlines;
     startline_t startline;
     linkedlist_t headers; // data will be a header_t*
-    bool complete;
-    bool keepalive;
 
-    // private variables
-    int _crlf_cntr; // counter for crlfs (used to detect when headers are done)
+    // Private variables
+    // counter for crlfs (used to detect when headers are done)
+    int _crlf_cntr;
+    // Whether the request is done parsing
+    bool _complete;
 } request_t;
 
 typedef enum {

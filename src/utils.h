@@ -110,4 +110,51 @@ bool streq_icase(const char *s1, const char *s2);
  */
 bool is_str_allin(const char *s, size_t len, const char *chset);
 
+
+// Linked list
+
+typedef struct _Node llnode_t;
+struct _Node {
+    void *data;
+    llnode_t *next;
+};
+
+typedef struct {
+    llnode_t *head;
+    llnode_t *tail;
+    int size;
+} linkedlist_t;
+
+typedef bool (*llcallback_t)(int i, void *data);
+typedef bool (*llpredicate_t)(int i, const void *data, const void *criteria);
+
+/** Initialize a new empty linked list. */
+void linkedlist_init(linkedlist_t *list);
+
+/** Push data to the linked list */
+void linkedlist_push(linkedlist_t *list, void *data);
+
+/**
+ * Free a linked list. If `free_data` is true, calls free() on the data pointer inside each node.
+ */
+void linkedlist_free(linkedlist_t *list, bool free_data);
+
+/** Returns the size of a linked list */
+int linkedlist_size(const linkedlist_t *list);
+
+/** Get the data in a linked list at index i. Returns NULL if i is out of bounds. O(n) */
+void *linkedlist_get(const linkedlist_t *list, int i);
+
+/**
+ * Iterate a linked list and call f(i, data) for each element. Stops iteration if the function
+ * returns true.
+ */
+void linkedlist_foreach(const linkedlist_t *list, llcallback_t f);
+
+/**
+ * Iterate a linked list and returns the first element where match_fn(data, critera) returns true.
+ * Returns NULL if none matched the criteria.
+ */
+void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria);
+
 #endif
