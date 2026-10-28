@@ -6,8 +6,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define SOCKET_END 0
-#define SOCKET_ERR -1
+#define SOCKET_SUCCESS  1
+#define SOCKET_CLOSED   0
+#define SOCKET_ERR     -1
 #define SOCKET_TIMEOUT -2
 
 #define SOCKET_MAX_TCP_CONNECTIONS 3
@@ -63,20 +64,45 @@ void close_socket(const socket_t *sock);
  * @param sock_fd Socket file descriptor
  * @param buf Pointer to the buffer to store data
  * @param len Maximum number of bytes to receive
- * @param out_src_addr Output parameter for the address of the sender. Pass NULL to discard.
  * @param timeout_sec Timeout duration in seconds
- * @return Number of bytes received on success, `SOCKET_END` on graceful shutdown, `SOCKET_ERR` on
- *      error, and `SOCKET_TIMEOUT` on timeout.
+ * @return Number of bytes received on success, `SOCKET_CLOSED` on graceful shutdown,
+ *      `SOCKET_ERR` on error, and `SOCKET_TIMEOUT` on timeout.
  */
-int socket_recv_timeout(
-    const socket_t *sock, void *buf, int len, addr_t *out_src_addr, int timeout_sec
-);
+int socket_recv_timeout(const socket_t *sock, void *buf, int len, int timeout_sec);
 
-/** Receive bytes from the socket. Wrapper for `recvfrom()` */
-int socket_recv(const socket_t *sock, void *buf, int len, addr_t *out_src_addr);
+/**
+ * Receive bytes from the socket.
+ * 
+ * @param sock Pointer to the socket
+ * @param buf Buffer for data to be put into
+ * @param len Number of bytes to receive
+ * @return Number of bytes received on success, `SOCKET_CLOSED` on graceful shutdown, or
+ *      `SOCKET_ERR` on error.
+ */
+int socket_recv(const socket_t *sock, void *buf, int len);
 
-/** Send bytes to the socket. Wrapper for `sendto()`. */
-int socket_send(const socket_t *sock, const void *buf, int len, const addr_t *dst_addr);
+/**
+ * Send bytes to the socket.
+ * 
+ * @param sock Pointer to the socket
+ * @param buf Buffer for data to send
+ * @param len Number of bytes to send
+ * @return Number of bytes sent on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR`
+ *      on error.
+ */
+int socket_send(const socket_t *sock, const void *buf, int len);
+
+/**
+ * Send bytes to the socket until all bytes are sent.
+ * 
+ * @param sock Pointer to the socket
+ * @param buf Buffer for data to send
+ * @param len Number of bytes to send
+ * @param out_sent Number of bytes actually sent. On success, this is equal to `len`.
+ * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
+ *      error.
+ */
+int socket_send_all(const socket_t *sock, const void *buf, int len, int *out_sent);
 
 /** Empties the OS socket receive buffer */
 void socket_recv_flush(const socket_t *sock);

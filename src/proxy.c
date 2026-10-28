@@ -19,5 +19,6 @@ int main() {
             return 1;
         }
         print_socket(&client_sock);
+        close_socket(&client_sock);
     }
 }

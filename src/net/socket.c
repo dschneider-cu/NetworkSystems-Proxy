@@ -92,9 +92,7 @@ void close_socket(const socket_t *sock) {
     vlog("Socket %d closed", sock->fd);
 }
 
-int socket_recv_timeout(
-    const socket_t *sock, void *buf, int len, addr_t *out_src_addr, int timeout_sec
-) {
+int socket_recv_timeout(const socket_t *sock, void *buf, int len, int timeout_sec) {
     // set up the file descriptor set
     fd_set fds;
     FD_ZERO(&fds);
@@ -111,22 +109,41 @@ int socket_recv_timeout(
     if (n == -1) { return SOCKET_ERR; }
 
     // data must be here, so do a normal recv()
-    return socket_recv(sock, buf, len, out_src_addr);
+    return socket_recv(sock, buf, len);
 }
 
-int socket_recv(const socket_t *sock, void *buf, int len, addr_t *out_src_addr) {
-    socklen_t src_addrlen = sizeof(addr_t);
-    return recvfrom(
-        sock->fd, buf, len, 0,
-        (struct sockaddr *)out_src_addr, &src_addrlen
-    );
+int socket_recv(const socket_t *sock, void *buf, int len) {
+    int result = recv(sock->fd, buf, len, 0);
+    if (result == 0) { return SOCKET_CLOSED; }
+    else if (result < 0) { return SOCKET_ERR; }
+    else { return result; }
 }
 
-int socket_send(const socket_t *sock, const void *buf, int len, const addr_t *dst_addr) {
-    return sendto(
-        sock->fd, buf, len, 0,
-        (const struct sockaddr *)dst_addr, sizeof(addr_t)
-    );
+int socket_send(const socket_t *sock, const void *buf, int len) {
+    int result = send(sock->fd, buf, len, 0);
+    if (result == 0) { return SOCKET_CLOSED; }
+    else if (result < 0) { return SOCKET_ERR; }
+    else { return result; }
+}
+
+int socket_send_all(const socket_t *sock, const void *buf, int len, int *out_sent) {
+    int total = 0;
+    int left = len;
+    int sent;
+
+    while (left > 0) {
+        sent = socket_send(sock, buf, left);
+        if (sent <= 0) {
+            *out_sent = total;
+            return sent;
+        }
+
+        total += sent;
+        left -= sent;
+    }
+
+    *out_sent = total;
+    return SOCKET_SUCCESS;
 }
 
 void socket_recv_flush(const socket_t *sock) {
