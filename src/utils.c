@@ -164,7 +164,7 @@ void linkedlist_init(linkedlist_t *list) {
 }
 
 void linkedlist_push(linkedlist_t *list, void *data) {
-    llnode_t *node = malloc(sizeof(llnode_t));
+    llnode_t *node = (llnode_t *)malloc(sizeof(llnode_t));
     node->data = data;
     node->next = NULL;
 
