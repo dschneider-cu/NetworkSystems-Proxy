@@ -12,6 +12,7 @@
 #define SOCKET_TIMEOUT -2
 
 #define SOCKET_MAX_TCP_CONNECTIONS 3
+#define SOCKET_RECV_LINE_MAX_LEN   1023
 
 /** Helper type alias for ipv4 address struct */
 typedef struct sockaddr_in addr_t;
@@ -30,6 +31,19 @@ typedef struct {
      *  client socket) */
     addr_t addr;
 } socket_t;
+
+typedef struct {
+    const socket_t *sock;
+    /** Length of the line */
+    int len;
+    /** Number of bytes after the current line contained in the buffer */
+    int excess;
+    /**
+     * Buffer containing the line text. The buffer will be null terminated but the line will *not*
+     * be, as the buffer may contain parts of the next line(s). User `reader.len`.
+     */
+    char line[SOCKET_RECV_LINE_MAX_LEN + 1];
+} sockreader_t;
 
 /**
  * Creates a TCP socket and fills a socket_t structure with the socket info. Returns whether the
@@ -106,6 +120,23 @@ int socket_send_all(const socket_t *sock, const void *buf, int len, int *out_sen
 
 /** Empties the OS socket receive buffer */
 void socket_recv_flush(const socket_t *sock);
+
+/**
+ * Initialize a socket reader
+ * 
+ * @param reader Uninitialized reader struct
+ * @param sock Socket to read
+ */
+void init_sockreader(sockreader_t *reader, const socket_t *sock);
+
+/**
+ * Receive data from the socket until a complete line is received. 
+ * 
+ * @param reader Reader struct
+ * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
+ *      error.
+ */
+int sockreader_readline(sockreader_t *reader);
 
 /**
  * Populates an addr_t given an IP address and port.

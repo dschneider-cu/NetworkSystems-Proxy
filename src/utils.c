@@ -141,6 +141,15 @@ bool streq_icase(const char *s1, const char *s2) {
     return *s1 == *s2;
 }
 
+int strnfind(const char *s, char c, int n) {
+    if (s == NULL || n == 0) { return -1; }
+    for (int i = 0; i < n; i++) {
+        if (s[i] == c) { return i; }
+        else if (s[i] == '\0') { return -1; }
+    }
+    return -1;
+}
+
 bool is_str_allin(const char *s, size_t len, const char *chset) {
     if (s == NULL || chset == NULL) { return false; }
 

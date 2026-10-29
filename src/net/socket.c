@@ -154,6 +154,58 @@ void socket_recv_flush(const socket_t *sock) {
     while ((n = recv(sock->fd, buffer, sizeof(buffer), MSG_DONTWAIT)) > 0) {}
 }
 
+void init_sockreader(sockreader_t *reader, const socket_t *sock) {
+    reader->sock = sock;
+    reader->len = 0;
+    reader->excess = 0;
+    reader->line[0] = '\0';
+}
+
+int sockreader_readline(sockreader_t *reader) {
+    if (reader->excess > 0) {
+        // Remove the current line from the buffer and slide the next line to the beginning
+        memmove(&reader->line, reader->line + reader->len, reader->excess);
+    }
+    reader->len = reader->excess;
+    reader->excess = 0;
+    reader->line[reader->len] = '\0';
+
+    // Find next line in the buffer
+    int nl_idx = strnfind(&reader->line, '\n', reader->len);
+    if (nl_idx != -1) {
+        // Full line is in the buffer
+        reader->excess = reader->len - (nl_idx + 1);
+        reader->len = nl_idx + 1;
+        return SOCKET_SUCCESS;
+    }
+
+    // Line is not complete - wait for more data
+    while (true) {
+        if (reader->len >= SOCKET_RECV_LINE_MAX_LEN) {
+            elog("Line exceeded maximum length");
+            return SOCKET_ERR;
+        }
+
+        int received = socket_recv(
+            reader->sock,
+            &reader->line + reader->len,
+            SOCKET_RECV_LINE_MAX_LEN - reader->len
+        );
+
+        if (received <= 0) { return received; }
+        
+        // Search for a newline in the received data
+        nl_idx = strnfind(&reader->line + reader->len, '\n', received);
+        if (nl_idx != -1) {
+            reader->len += (nl_idx + 1);
+            reader->excess = received - (nl_idx + 1);
+            return SOCKET_SUCCESS;
+        } else {
+            reader->len += received;
+        }
+    }
+}
+
 void make_addr(addr_t *out_addr, uint32_t ip, uint16_t port) {
     // Zero out the structure
     memset(out_addr, 0, sizeof(out_addr));
