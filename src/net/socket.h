@@ -69,6 +69,14 @@ bool create_socket(socket_t *out_sock, const char *ip, uint16_t port, socktype_t
  */
 bool socket_accept(const socket_t *server_sock, socket_t *out_client_sock);
 
+/**
+ * Connect a client socket to the server.
+ * 
+ * @param sock Client socket
+ * @return Whether the connect succeeded
+ */
+bool socket_connect(const socket_t *sock);
+
 /** Closes the given socket. Do not use `sock` again after closing. */
 void close_socket(const socket_t *sock);
 

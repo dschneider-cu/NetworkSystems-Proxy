@@ -87,6 +87,20 @@ bool socket_accept(const socket_t *server_sock, socket_t *out_client_sock) {
     return true;
 }
 
+bool socket_connect(const socket_t *sock) {
+    if (sock->type != SOCKET_CLIENT) {
+        elog("connect() can only be used on client sockets");
+        return false;
+    }
+
+    if (connect(sock->fd, (struct sockaddr *)&sock->addr, sizeof(sock->addr)) < 0) {
+        pelog("Error connecting");
+        return false;
+    }
+
+    return true;
+}
+
 void close_socket(const socket_t *sock) {
     close(sock->fd);
     vlog("Socket %d closed", sock->fd);
@@ -120,7 +134,7 @@ int socket_recv(const socket_t *sock, void *buf, int len) {
 }
 
 int socket_send(const socket_t *sock, const void *buf, int len) {
-    int result = send(sock->fd, buf, len, 0);
+    int result = send(sock->fd, buf, len, MSG_NOSIGNAL);
     if (result == 0) { return SOCKET_CLOSED; }
     else if (result < 0) { return SOCKET_ERR; }
     else { return result; }
@@ -164,14 +178,14 @@ void init_sockreader(sockreader_t *reader, const socket_t *sock) {
 int sockreader_readline(sockreader_t *reader) {
     if (reader->excess > 0) {
         // Remove the current line from the buffer and slide the next line to the beginning
-        memmove(&reader->line, reader->line + reader->len, reader->excess);
+        memmove(reader->line, reader->line + reader->len, reader->excess);
     }
     reader->len = reader->excess;
     reader->excess = 0;
     reader->line[reader->len] = '\0';
 
     // Find next line in the buffer
-    int nl_idx = strnfind(&reader->line, '\n', reader->len);
+    int nl_idx = strnfind(reader->line, '\n', reader->len);
     if (nl_idx != -1) {
         // Full line is in the buffer
         reader->excess = reader->len - (nl_idx + 1);
@@ -188,14 +202,14 @@ int sockreader_readline(sockreader_t *reader) {
 
         int received = socket_recv(
             reader->sock,
-            &reader->line + reader->len,
+            reader->line + reader->len,
             SOCKET_RECV_LINE_MAX_LEN - reader->len
         );
 
         if (received <= 0) { return received; }
         
         // Search for a newline in the received data
-        nl_idx = strnfind(&reader->line + reader->len, '\n', received);
+        nl_idx = strnfind(reader->line + reader->len, '\n', received);
         if (nl_idx != -1) {
             reader->len += (nl_idx + 1);
             reader->excess = received - (nl_idx + 1);
