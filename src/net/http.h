@@ -2,6 +2,7 @@
 #define HTTP_H
 
 #include <stdbool.h>
+#include "socket.h"
 #include "../utils.h"
 
 /** Struct for an HTTP header */
@@ -47,10 +48,11 @@ typedef enum {
  * Parse one line of an HTTP request and update the `out` struct accoringly.
  * 
  * @param request Pointer to the request
- * @param line Line string. Must be null terminated. May have trailing whitespace.
+ * @param line Line string. May have trailing whitespace.
+ * @param line_len Length of the line string
  * @returns An HTTP status code representing the result of the parsing
  */
-httpcode_t http_parse_request_line(request_t *request, char *line);
+httpcode_t http_parse_request_line(request_t *request, char *line, int line_len);
 
 /**
  * Initializes a new request_t.
@@ -66,11 +68,12 @@ void free_request(request_t *request);
  * Parse the start line (the first line) of an HTTP request.
  * Format: `"[method] [uri] [version]"`
  * 
- * @param line Line string. Must be null terminated. May have trailing whitespace.
- * @param out Result startline_t struct that will be filled in
+ * @param startline Result startline_t struct that will be filled in
+ * @param line Line string. No trailing whitespace.
+ * @param line_len Length of the line string
  * @returns An HTTP status code representing the result of the parsing
  */
-httpcode_t http_parse_start_line(startline_t *startline, char *line);
+httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len);
 
 /**
  * Free memory inside a startline_t. Does not free `s` itself if it was allocated with malloc.
@@ -82,10 +85,11 @@ void free_startline(startline_t *startline);
  * Format: `"[name]: [value]"`
  * 
  * @param header header_t struct that will be filled in
- * @param line Line string. Must be null terminated. May have trailing whitespace.
+ * @param line Line string. No trailing whitespace.
+ * @param line_len Length of the line string
  * @returns An HTTP status code representing the result of the parsing
  */
-httpcode_t http_parse_header(header_t *header, char *line);
+httpcode_t http_parse_header(header_t *header, char *line, int line_len);
 
 /**
  * Returns the value of the given header name.
@@ -95,6 +99,16 @@ httpcode_t http_parse_header(header_t *header, char *line);
  * @return String value of the header, or NULL if the request doesn't have the header
  */
 const char *http_get_header(const request_t *request, const char *name);
+
+/**
+ * Receives an HTTP request from a socket reader and outputs a parsed request.
+ * 
+ * @param reader Socket reader (must be initialized already)
+ * @param out_sockcode Output parameter for the socket result code
+ * @param out_httpcode Output parameter for the HTTP code representing the result of the parsing
+ * @return Parsed HTTP request or NULL if receive or parsing failed
+ */
+request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcode_t *out_httpcode);
 
 /**
  * Free memory inside a header_t. Does not free `h` itself if it was allocated with malloc.
@@ -111,5 +125,7 @@ char* make_response(httpcode_t code, const char* mimetype, const unsigned char* 
  * Returns the string message associated with the given HTTP code, eg. "Not Found" for 404.
  */
 const char *code_to_str(httpcode_t code);
+
+void print_request(const request_t *request);
 
 #endif

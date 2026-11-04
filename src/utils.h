@@ -67,6 +67,13 @@ void print_hexdump(const void *data, int data_len);
 int rstrip(char *str);
 
 /**
+ * Returns the length of the string with right side trailing whitespace removed.
+ * 
+ * @return new length of the string
+ */
+int rnstrip(const char *str, int len);
+
+/**
  * Returns a new pointer to `str` with leading whitespace removed.
  * 
  * @param str String pointer

@@ -83,13 +83,17 @@ void print_hexdump(const void *data, int data_len) {
 int rstrip(char *str) {
     if (str == NULL) return 0;
     
-    int len = strlen(str);
-    
-    // Move backwards from the end of the string
-    while (len > 0 && isspace((unsigned char) str[len - 1])) { len--; }
+    int len = rnstrip(str, strlen(str));
     
     // Add the new null terminator to truncate the trailing spaces
     str[len] = '\0';
+    return len;
+}
+
+int rnstrip(const char *str, int len) {
+    if (str == NULL) return 0;
+
+    while (len > 0 && isspace((unsigned char) str[len - 1])) { len--; }
     return len;
 }
 

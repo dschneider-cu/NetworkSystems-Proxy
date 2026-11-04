@@ -2,32 +2,31 @@
 #include <string.h>
 #include <stdlib.h>
 #include "http.h"
+#include "../utils.h"
 
 
-httpcode_t http_parse_request_line(request_t *request, char *line) {
+httpcode_t http_parse_request_line(request_t *request, char *line, int line_len) {
     if (request == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; }
     if (request->complete) { return HTTP_OK; }
 
     httpcode_t code = HTTP_INTERNAL_SERVER_ERROR;
+    line_len = rnstrip(line, line_len);
+    printf("%.*s [%d]\n", line_len, line, line_len);
 
     if (request->nlines == 0) {
         // First line
-        code = http_parse_start_line(&request->startline, line);
-    } else if (streq(line, "\r\n")) {
-        // Blank line
-        request->_crlf_cntr++;
+        code = http_parse_start_line(&request->startline, line, line_len);
+    } else if (line_len == 0) {
+        // Blank line; end of headers
+        request->complete = true;
         code = HTTP_OK;
-    } else if (request->_crlf_cntr < 0) {
+    } else if (line_len > 0) {
         // Header line
         header_t *h = (header_t *)malloc(sizeof(header_t));
-        code = http_parse_header(h, line);
+        code = http_parse_header(h, line, line_len);
         if (code == HTTP_OK) {
             linkedlist_push(&request->headers, h);
         }
-    } else if (request->_crlf_cntr >= 2) {
-        // Two blank lines mark the end of the headers. Request completed.
-        request->complete = true;
-        code = HTTP_OK;
     } else {
         return HTTP_BAD_REQUEST;
     }
@@ -52,9 +51,8 @@ void free_request(request_t *request) {
     linkedlist_free(&request->headers, true);
 }
 
-httpcode_t http_parse_start_line(startline_t *startline, char *line) {
+httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len) {
     if (startline == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
-    int length = rstrip(line);
 
     // start of current segment (method, uri, or version) in line
     int i = 0;
@@ -62,7 +60,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line) {
     int j = 0;
 
     // Find end of Method
-    while (j < length && line[j] != ' ') { j++; }
+    while (j < line_len && line[j] != ' ') { j++; }
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
     // Copy characters from i to j into method
@@ -74,7 +72,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line) {
     i = j;
 
     // Find end of URI
-    while (j < length && line[j] != ' ') { j++; }
+    while (j < line_len && line[j] != ' ') { j++; }
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
     // Copy characters from i to j into uri
@@ -86,7 +84,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line) {
     i = j;
 
     // Find end of Version
-    while (j < length && line[j] != ' ') { j++; }
+    while (j < line_len && line[j] != ' ') { j++; }
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
 
     // Copy characters from i to j into version
@@ -103,26 +101,25 @@ void free_startline(startline_t *startline) {
     free(startline->version);
 }
 
-httpcode_t http_parse_header(header_t *header, char *line) {
+httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
     if (header == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
-    int length = rstrip(line);
     
     // Find the colon
     int i = 0;
-    while (i < length && line[i] != ':') { i++; }
-    if (i == length) { return HTTP_BAD_REQUEST; } // no colon found
+    while (i < line_len && line[i] != ':') { i++; }
+    if (i == line_len) { return HTTP_BAD_REQUEST; } // no colon found
 
     // Trim leading whitespace on value
     int j = i + 1;
-    while (j < length && line[j] == ' ') { j++; }
+    while (j < line_len && line[j] == ' ') { j++; }
 
     header->name = (char *)malloc(i + 1);
     memcpy(header->name, line, i);
     header->name[i] = '\0';
 
-    header->value = (char *)malloc(length - j + 1);
-    memcpy(header->value, &line[j], length - j);
-    header->value[length - j] = '\0';
+    header->value = (char *)malloc(line_len - j + 1);
+    memcpy(header->value, &line[j], line_len - j);
+    header->value[line_len - j] = '\0';
 
     return HTTP_OK;
 }
@@ -140,6 +137,48 @@ const char *http_get_header(const request_t *request, const char *name) {
     } else {
         return NULL;
     }
+}
+
+request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcode_t *out_httpcode) {
+    int sockcode;
+    httpcode_t httpcode;
+    request_t *request = (request_t *)malloc(sizeof(request_t));
+    if (request == NULL) {
+        *out_sockcode = SOCKET_ERR;
+        *out_httpcode = HTTP_INTERNAL_SERVER_ERROR;
+        return NULL;
+    }
+    init_request(request);
+
+    while (!request->complete) {
+        // Receive line
+        sockcode = sockreader_readline(reader);
+        if (sockcode != SOCKET_SUCCESS) {
+            *out_sockcode = sockcode;
+            *out_httpcode = HTTP_INTERNAL_SERVER_ERROR;
+            free_request(request);
+            return NULL;
+        }
+
+        // Temporarily add null terminator
+        char c = reader->line[reader->len];
+        reader->line[reader->len] = '\0';
+
+        // Parse line
+        httpcode = http_parse_request_line(request, reader->line, reader->len);
+        if (httpcode != HTTP_OK) {
+            *out_sockcode = SOCKET_SUCCESS;
+            *out_httpcode = httpcode;
+            free_request(request);
+            return NULL;
+        }
+
+        reader->line[reader->len] = c;
+    }
+
+    *out_sockcode = SOCKET_SUCCESS;
+    *out_httpcode = HTTP_OK;
+    return request;
 }
 
 void free_header(header_t *header) {
@@ -191,4 +230,28 @@ const char *code_to_str(httpcode_t code) {
         default:
             return "Internal Server Error";
     }
+}
+
+bool _print_header(int i, void *data) {
+    header_t *h = (header_t *)data;
+    printf("%s: %s\n", h->name, h->value);
+    return false;
+}
+
+void print_request(const request_t *request) {
+    if (request == NULL) {
+        printf("- HTTP Request -\nNULL\n");
+        return;
+    }
+
+    printf(
+        "- HTTP Request -\n[complete: %s nlines: %d]\n",
+        request->complete ? "true" : "false", request->nlines
+    );
+    printf(
+        "%s %s %s\n",
+        request->startline.version, request->startline.method, request->startline.uri
+    );
+
+    linkedlist_foreach(&request->headers, _print_header);
 }
