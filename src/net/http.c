@@ -69,9 +69,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
     // Copy characters from i to j into method
-    startline->method = (char *)malloc(j - i + 1);
-    memcpy(startline->method, &line[i], j - i);
-    startline->method[j - i] = '\0';
+    startline->method = strnclone(&line[i], j - i);
     // Consume space & move forward
     j++;
     i = j;
@@ -81,9 +79,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
     // Copy characters from i to j into uri
-    startline->uri = (char *)malloc(j - i + 1);
-    memcpy(startline->uri, &line[i], j - i);
-    startline->uri[j - i] = '\0';
+    startline->uri = strnclone(&line[i], j - i);
     // Consume space & move forward
     j++;
     i = j;
@@ -93,9 +89,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
 
     // Copy characters from i to j into version
-    startline->version = (char *)malloc(j - i + 1);
-    memcpy(startline->version, &line[i], j - i);
-    startline->version[j - i] = '\0';
+    startline->version = strnclone(&line[i], j - i);
     
     return HTTP_OK;
 }
@@ -118,13 +112,8 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
     int j = i + 1;
     while (j < line_len && line[j] == ' ') { j++; }
 
-    header->name = (char *)malloc(i + 1);
-    memcpy(header->name, line, i);
-    header->name[i] = '\0';
-
-    header->value = (char *)malloc(line_len - j + 1);
-    memcpy(header->value, &line[j], line_len - j);
-    header->value[line_len - j] = '\0';
+    header->name = strnclone(line, i);
+    header->value = strnclone(&line[j], line_len - j);
 
     return HTTP_OK;
 }
@@ -267,35 +256,18 @@ request_t *http_make_request(
     request_t *request = (request_t *)malloc(sizeof(request_t));
     if (request == NULL) return NULL;
 
-    // Method
-    request->startline.method = (char *)malloc(strlen(method) + 1);
-    request->startline.uri = (char *)malloc(strlen(url) + 1);
-    request->startline.version = (char *)malloc(strlen(version) + 1);
-    if (request->startline.method == NULL 
-        || request->startline.uri == NULL
-        || request->startline.version == NULL) {
-        return NULL;
-    }
-    
-    strcpy(request->startline.method, method);
-    strcpy(request->startline.uri, url);
-    strcpy(request->startline.version, version);
+    request->startline.method = strclone(method);
+    request->startline.uri = strclone(url);
+    request->startline.version = strclone(version);
 
     // Headers
     linkedlist_init(&request->headers);
 
     for (int i = 0; i < nheaders; i++) {
-        const char *name = headers[i*2];
-        const char *value = headers[i*2+1];
-
         header_t *h = (header_t *)malloc(sizeof(header_t));
-        if (h == NULL) return NULL;
-        h->name = (char *)malloc(strlen(name) + 1);
-        h->value = (char *)malloc(strlen(value) + 1);
-        if (h->name == NULL || h->value == NULL) return NULL;
+        h->name = strclone(headers[i*2]);
+        h->value = strclone(headers[i*2+1]);
 
-        strcpy(h->name, name);
-        strcpy(h->value, value);
         linkedlist_push(&request->headers, h);
     }
 

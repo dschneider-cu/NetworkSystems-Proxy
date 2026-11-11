@@ -193,6 +193,19 @@ bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing) {
     return true;
 }
 
+char *strclone(const char *s) {
+    return strnclone(s, strlen(s));
+}
+
+char *strnclone(const char *s, int len) {
+    char *s2 = (char *)malloc(len + 1);
+    if (s2 == NULL) return NULL;
+
+    memcpy(s2, s, len);
+    s2[len] = '\0';
+    return s2;
+}
+
 void linkedlist_init(linkedlist_t *list) {
     list->head = NULL;
     list->tail = NULL;

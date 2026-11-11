@@ -129,6 +129,12 @@ bool is_str_allin(const char *s, size_t len, const char *chset);
 /** Converts a string to an integer. Returns false on error. */
 bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing);
 
+/** Copies a string into the heap */
+char *strclone(const char *s);
+
+/** Copies N characters of a string into the heap */
+char *strnclone(const char *s, int len);
+
 
 
 // Linked list
