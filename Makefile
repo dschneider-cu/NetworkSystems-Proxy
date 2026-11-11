@@ -1,5 +1,5 @@
 CC     := gcc
-CFLAGS := -Wall -Wextra -O2
+CFLAGS := -Wall -Wextra -O0 -g
 LIBS   := -lssl -lcrypto
 
 TARGET      := proxy
@@ -28,7 +28,7 @@ $(TEST_TARGET): $(TEST_OBJS)
 # Compile all .c to .o
 obj/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(TARGET) $(TEST_TARGET) obj $(CACHE_DIR)/*
