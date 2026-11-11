@@ -95,9 +95,9 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
 }
 
 void free_startline(startline_t *startline) {
-    free(startline->method);
-    free(startline->uri);
-    free(startline->version);
+    if (startline->method != NULL) free(startline->method);
+    if (startline->uri != NULL) free(startline->uri);
+    if (startline->version != NULL) free(startline->version);
 }
 
 httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
@@ -199,25 +199,18 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
     return HTTP_OK;
 }
 
-request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcode_t *out_httpcode) {
+httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request_t *out_request) {
     int sockcode;
     httpcode_t httpcode;
-    request_t *request = (request_t *)malloc(sizeof(request_t));
-    if (request == NULL) {
-        *out_sockcode = SOCKET_ERR;
-        *out_httpcode = HTTP_INTERNAL_SERVER_ERROR;
-        return NULL;
-    }
-    init_request(request);
+    init_request(out_request);
 
-    while (!request->complete) {
+    while (!out_request->complete) {
         // Receive line
         sockcode = sockreader_readline(reader);
         if (sockcode != SOCKET_SUCCESS) {
             *out_sockcode = sockcode;
-            *out_httpcode = HTTP_INTERNAL_SERVER_ERROR;
-            free_request(request);
-            return NULL;
+            free_request(out_request);
+            return HTTP_INTERNAL_SERVER_ERROR;
         }
 
         // Temporarily add null terminator
@@ -225,20 +218,19 @@ request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcod
         reader->line[reader->len] = '\0';
 
         // Parse line
-        httpcode = http_parse_request_line(request, reader->line, reader->len);
+        httpcode = http_parse_request_line(out_request, reader->line, reader->len);
         if (httpcode != HTTP_OK) {
             *out_sockcode = SOCKET_SUCCESS;
-            *out_httpcode = httpcode;
-            free_request(request);
-            return NULL;
+            free_request(out_request);
+            return httpcode;
         }
 
+        // Restore character
         reader->line[reader->len] = c;
     }
 
     *out_sockcode = SOCKET_SUCCESS;
-    *out_httpcode = HTTP_OK;
-    return request;
+    return HTTP_OK;
 }
 
 void free_header(header_t *header) {

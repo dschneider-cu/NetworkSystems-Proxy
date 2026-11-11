@@ -128,10 +128,10 @@ httpcode_t http_parse_url(url_t *url, const request_t *request);
  * 
  * @param reader Socket reader (must be initialized already)
  * @param out_sockcode Output parameter for the socket result code
- * @param out_httpcode Output parameter for the HTTP code representing the result of the parsing
- * @return Parsed HTTP request or NULL if receive or parsing failed
+ * @param out_request Output parameter for the parsed HTTP request
+ * @return An HTTP status code representing the result of the parsing
  */
-request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcode_t *out_httpcode);
+httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request_t *out_request);
 
 /**
  * Free memory inside a header_t. Does not free `h` itself if it was allocated with malloc.
