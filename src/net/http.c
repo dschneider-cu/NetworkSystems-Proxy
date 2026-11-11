@@ -40,7 +40,7 @@ void init_request(request_t *request) {
     request->nlines = 0;
     request->complete = false;
     request->startline.method = NULL;
-    request->startline.uri = NULL;
+    request->startline.url = NULL;
     request->startline.version = NULL;
     request->_crlf_cntr = 0;
     linkedlist_init(&request->headers);
@@ -59,7 +59,7 @@ void free_request(request_t *request) {
 httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len) {
     if (startline == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
 
-    // start of current segment (method, uri, or version) in line
+    // start of current segment (method, url, or version) in line
     int i = 0;
     // end of current segment in line
     int j = 0;
@@ -74,12 +74,12 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     j++;
     i = j;
 
-    // Find end of URI
+    // Find end of URL
     while (j < line_len && line[j] != ' ') { j++; }
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
-    // Copy characters from i to j into uri
-    startline->uri = strnclone(&line[i], j - i);
+    // Copy characters from i to j into url
+    startline->url = strnclone(&line[i], j - i);
     // Consume space & move forward
     j++;
     i = j;
@@ -96,7 +96,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
 
 void free_startline(startline_t *startline) {
     if (startline->method != NULL) free(startline->method);
-    if (startline->uri != NULL) free(startline->uri);
+    if (startline->url != NULL) free(startline->url);
     if (startline->version != NULL) free(startline->version);
 }
 
@@ -134,13 +134,13 @@ const char *http_get_header(const request_t *request, const char *name) {
 }
 
 httpcode_t http_parse_url(url_t *url, const request_t *request) {
-    char *uri = request->startline.uri;
+    char *urlstr = request->startline.url;
 
     // GET http://example.foo/hello HTTP/1.1
     //     ^url   ^host      ^path
     const char *host;
     int host_len = 0;
-    bool host_in_uri;
+    bool host_in_url;
     const char *path;
     int path_len = 0;
     const char *portstr;
@@ -148,19 +148,19 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
     int port;
 
     // Look for host in URL
-    if (strstartswith(uri, "http://")) {
-        host = uri + strlen("http://");
+    if (strstartswith(urlstr, "http://")) {
+        host = urlstr + strlen("http://");
         port = PORT_HTTP;
-        host_in_uri = true;
-    } else if (strstartswith(uri, "https://")) {
-        host = uri + strlen("https://");
+        host_in_url = true;
+    } else if (strstartswith(urlstr, "https://")) {
+        host = urlstr + strlen("https://");
         port = PORT_HTTPS;
-        host_in_uri = true;
+        host_in_url = true;
     } else {
         // Look for host in Host header
         host = http_get_header(request, "Host");
         port = PORT_HTTP;
-        host_in_uri = false;
+        host_in_url = false;
 
         if (host == NULL) {
             // Request doesn't contain a host
@@ -183,11 +183,11 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
         }
     }
 
-    // Remainder of the URI is the path
-    if (host_in_uri) {
+    // Remainder of the URL is the path
+    if (host_in_url) {
         path = portstr + port_len;
     } else {
-        path = request->startline.uri;
+        path = request->startline.url;
     }
     path_len = strlen(path);
     
@@ -249,7 +249,7 @@ request_t *http_make_request(
     if (request == NULL) return NULL;
 
     request->startline.method = strclone(method);
-    request->startline.uri = strclone(url);
+    request->startline.url = strclone(url);
     request->startline.version = strclone(version);
 
     // Headers
@@ -333,8 +333,15 @@ void print_request(const request_t *request) {
     );
     printf(
         "%s %s %s\n",
-        request->startline.version, request->startline.method, request->startline.uri
+        request->startline.version, request->startline.method, request->startline.url
     );
 
     linkedlist_foreach(&request->headers, _print_header);
+}
+
+void print_url(const url_t *url) {
+    printf(
+        "- URL -\nHost: \"%.*s\"\nPath: \"%.*s\"\nPort: %d\n",
+        url->host_len, url->host, url->path_len, url->path, url->port
+    );
 }

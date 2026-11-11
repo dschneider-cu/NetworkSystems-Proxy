@@ -18,12 +18,12 @@ typedef struct {
 /** Struct for the first line of an HTTP request */
 typedef struct {
     char *method;
-    char *uri;
+    char *url;
     char *version;
 } startline_t;
 
 /**
- * Struct containing all information in an HTTP request: startline (method, uri, version), and a
+ * Struct containing all information in an HTTP request: startline (method, url, version), and a
  * list of headers.
  * (request content, ie POST is not supported)
  */
@@ -78,7 +78,7 @@ void free_request(request_t *request);
 
 /**
  * Parse the start line (the first line) of an HTTP request.
- * Format: `"[method] [uri] [version]"`
+ * Format: `"[method] [url] [version]"`
  * 
  * @param startline Result startline_t struct that will be filled in
  * @param line Line string. No trailing whitespace.
@@ -173,5 +173,6 @@ char* http_make_response(
 const char *http_code_to_str(httpcode_t code);
 
 void print_request(const request_t *request);
+void print_url(const url_t *url);
 
 #endif
