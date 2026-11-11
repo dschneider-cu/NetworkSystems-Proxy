@@ -46,8 +46,13 @@ void init_request(request_t *request) {
     linkedlist_init(&request->headers);
 }
 
+bool _ll_freeheader(int i, void *data) {
+    free_header((header_t *)data);
+    return false;
+}
 void free_request(request_t *request) {
     free_startline(&request->startline);
+    linkedlist_foreach(&request->headers, _ll_freeheader);
     linkedlist_free(&request->headers, true);
 }
 
@@ -139,6 +144,72 @@ const char *http_get_header(const request_t *request, const char *name) {
     }
 }
 
+httpcode_t http_parse_url(url_t *url, const request_t *request) {
+    char *uri = request->startline.uri;
+
+    // GET http://example.foo/hello HTTP/1.1
+    //     ^url   ^host      ^path
+    const char *host;
+    int host_len = 0;
+    bool host_in_uri;
+    const char *path;
+    int path_len = 0;
+    const char *portstr;
+    int port_len = 0;
+    int port;
+
+    // Look for host in URL
+    if (strstartswith(uri, "http://")) {
+        host = uri + strlen("http://");
+        port = PORT_HTTP;
+        host_in_uri = true;
+    } else if (strstartswith(uri, "https://")) {
+        host = uri + strlen("https://");
+        port = PORT_HTTPS;
+        host_in_uri = true;
+    } else {
+        // Look for host in Host header
+        host = http_get_header(request, "Host");
+        port = PORT_HTTP;
+        host_in_uri = false;
+
+        if (host == NULL) {
+            // Request doesn't contain a host
+            return HTTP_BAD_REQUEST;
+        }
+    }
+
+    // Find length of the host by searching for a slash or colon
+    while (host[host_len] != '\0' && host[host_len] != '/' && host[host_len] != ':') {
+        host_len++;
+    }
+    
+    portstr = host + host_len;
+    if (portstr[0] == ':') {
+        portstr++; // Skip colon
+        // Host has a port
+        if (!strtoint(portstr, &port, &port_len, true) || port < 0 || port > PORT_MAX) {
+            // Stuff after the colon is not a valid port
+            return HTTP_BAD_REQUEST;
+        }
+    }
+
+    // Remainder of the URI is the path
+    if (host_in_uri) {
+        path = portstr + port_len;
+    } else {
+        path = request->startline.uri;
+    }
+    path_len = strlen(path);
+    
+    url->host_len = host_len;
+    url->host = host;
+    url->path = path;
+    url->path_len = path_len;
+    url->port = port;
+    return HTTP_OK;
+}
+
 request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcode_t *out_httpcode) {
     int sockcode;
     httpcode_t httpcode;
@@ -186,10 +257,58 @@ void free_header(header_t *header) {
     free(header->value);
 }
 
-char *make_response(httpcode_t code, const char* mimetype, const unsigned char* content, int content_len) {
+request_t *http_make_request(
+    const char *method,
+    const char *url,
+    const char *version,
+    const char **headers,
+    int nheaders
+) {
+    request_t *request = (request_t *)malloc(sizeof(request_t));
+    if (request == NULL) return NULL;
+
+    // Method
+    request->startline.method = (char *)malloc(strlen(method) + 1);
+    request->startline.uri = (char *)malloc(strlen(url) + 1);
+    request->startline.version = (char *)malloc(strlen(version) + 1);
+    if (request->startline.method == NULL 
+        || request->startline.uri == NULL
+        || request->startline.version == NULL) {
+        return NULL;
+    }
+    
+    strcpy(request->startline.method, method);
+    strcpy(request->startline.uri, url);
+    strcpy(request->startline.version, version);
+
+    // Headers
+    linkedlist_init(&request->headers);
+
+    for (int i = 0; i < nheaders; i++) {
+        const char *name = headers[i*2];
+        const char *value = headers[i*2+1];
+
+        header_t *h = (header_t *)malloc(sizeof(header_t));
+        if (h == NULL) return NULL;
+        h->name = (char *)malloc(strlen(name) + 1);
+        h->value = (char *)malloc(strlen(value) + 1);
+        if (h->name == NULL || h->value == NULL) return NULL;
+
+        strcpy(h->name, name);
+        strcpy(h->value, value);
+        linkedlist_push(&request->headers, h);
+    }
+
+    request->nlines = nheaders + 1;
+    request->complete = true;
+
+    return request;
+}
+
+char *http_make_response(httpcode_t code, const char* mimetype, const unsigned char* content, int content_len) {
     if (mimetype == NULL || content == NULL || content_len == 0) {
         char *resp = (char *)malloc(256); // enough space for response
-        sprintf(resp, "HTTP/1.1 %d %s\r\n\r\n", code, code_to_str(code));
+        sprintf(resp, "HTTP/1.1 %d %s\r\n\r\n", code, http_code_to_str(code));
         return resp;
     } else {
         char *resp = (char *)malloc(256 + content_len); // enough space for headers & content
@@ -197,7 +316,7 @@ char *make_response(httpcode_t code, const char* mimetype, const unsigned char* 
             resp,
             "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n",
             code,
-            code_to_str(code),
+            http_code_to_str(code),
             mimetype,
             content_len
         );
@@ -213,7 +332,7 @@ char *make_response(httpcode_t code, const char* mimetype, const unsigned char* 
     }
 }
 
-const char *code_to_str(httpcode_t code) {
+const char *http_code_to_str(httpcode_t code) {
     switch (code) {
         case HTTP_OK:
             return "OK";

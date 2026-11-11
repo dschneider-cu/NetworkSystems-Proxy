@@ -4,11 +4,41 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "net/socket.h"
+#include "net/http.h"
 #include "utils.h"
 
 bool VERBOSE = true;
 
 int main(void) {
+    const char *h[4] = {
+        "Hoost",
+        "foo.com",
+        "Foo",
+        "hello world"
+    };
+
+    request_t *r = http_make_request(
+        "GET",
+        "http://foo.com:8bc/",
+        "HTTP/1.1",
+        h, 2
+    );
+
+    print_request(r);
+
+    url_t u;
+    httpcode_t c = http_parse_url(&u, r);
+    printf("\n");
+    printf("%s\n", http_code_to_str(c));
+    if (c == HTTP_OK) {
+        printf("Host: \"%.*s\"\nPath: \"%.*s\"\nPort: %d\n", u.host_len, u.host, u.path_len, u.path, u.port);
+    }
+    
+    free_request(r);
+    free(r);
+
+    return 0;
+
     socket_t sock;
 
     if (!create_socket(&sock, "127.0.0.1", 5000, SOCKET_CLIENT)) {

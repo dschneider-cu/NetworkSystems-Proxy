@@ -145,6 +145,11 @@ bool streq_icase(const char *s1, const char *s2) {
     return *s1 == *s2;
 }
 
+bool strstartswith(const char *s, const char *prefix) {
+    if (s == NULL || prefix == NULL) { return false; }
+    return strncmp(s, prefix, strlen(prefix)) == 0;
+}
+
 int strnfind(const char *s, char c, int n) {
     if (s == NULL || n == 0) { return -1; }
     for (int i = 0; i < n; i++) {
@@ -167,6 +172,24 @@ bool is_str_allin(const char *s, size_t len, const char *chset) {
         }
     }
 
+    return true;
+}
+
+bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing) {
+    char *endptr;
+    long val = strtol(s, &endptr, 10);
+
+    if (
+        (errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) // out of long range
+        || (val > INT_MAX || val < INT_MIN)                       // out of int range
+        || (s == endptr)                                          // no parsed digits
+        || (!allow_trailing && *endptr != '\0')                   // leftover characters
+    ) {
+        return false;
+    }
+
+    *out_len = endptr - s;
+    *out = (int)val;
     return true;
 }
 

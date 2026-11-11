@@ -111,6 +111,9 @@ bool strneq(const char *s1, const char *s2, int n);
  */
 bool streq_icase(const char *s1, const char *s2);
 
+/** Returns true if s starts with prefix */
+bool strstartswith(const char *s, const char *prefix);
+
 /**
  * Finds the first instance of `c` in string `s`, searching at most `n` chars. Returns the index
  * of the character, or -1 if it is not found.
@@ -122,6 +125,9 @@ int strnfind(const char *s, char c, int n);
  * Returns false if either are NULL.
  */
 bool is_str_allin(const char *s, size_t len, const char *chset);
+
+/** Converts a string to an integer. Returns false on error. */
+bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing);
 
 
 

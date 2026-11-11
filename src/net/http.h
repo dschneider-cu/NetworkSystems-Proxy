@@ -5,6 +5,10 @@
 #include "socket.h"
 #include "../utils.h"
 
+#define PORT_HTTP  80
+#define PORT_HTTPS 443
+#define PORT_MAX   65535
+
 /** Struct for an HTTP header */
 typedef struct {
     char *name;
@@ -27,12 +31,20 @@ typedef struct {
     int nlines;
     startline_t startline;
     linkedlist_t headers; // data will be a header_t*
-    bool complete; // Whether the request is done parsing
+    bool complete;        // Whether the request is done parsing
 
     // Private variables
     // counter for crlfs (used to detect when headers are done)
     int _crlf_cntr;
 } request_t;
+
+typedef struct {
+    const char *host; // Domain name
+    int host_len;
+    const char *path; // May be empty string
+    int path_len;
+    int port;
+} url_t;
 
 typedef enum {
     HTTP_OK = 200,
@@ -101,6 +113,17 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len);
 const char *http_get_header(const request_t *request, const char *name);
 
 /**
+ * Parse a URL into host, path, and port given a request. The strings in the resulting url struct
+ * will point to indices in the `request->startline.url` string so they will *not* be null
+ * terminated.
+ * 
+ * @param url Result URL struct that will be filled in
+ * @param request HTTP request
+ * @return An HTTP status code representing the result of the parsing
+ */
+httpcode_t http_parse_url(url_t *url, const request_t *request);
+
+/**
  * Receives an HTTP request from a socket reader and outputs a parsed request.
  * 
  * @param reader Socket reader (must be initialized already)
@@ -116,15 +139,38 @@ request_t *http_receive_request(sockreader_t *reader, int *out_sockcode, httpcod
 void free_header(header_t *header);
 
 /**
+ * Create a request_t from strings.
+ *
+ * @param method HTTP method ("GET")
+ * @param url Request url
+ * @param version Version ("HTTP/1.0")
+ * @param headers Array of headers; must be pairs of strings [name, value, name, value, ...]
+ * @param nheaders Number of headers, should be length of `headers` / 2
+ * @return An allocated request_t or NULL if parsing failed
+ */
+request_t *http_make_request(
+    const char *method,
+    const char *url,
+    const char *version,
+    const char **headers,
+    int nheaders
+);
+
+/**
  * Make an HTTP response string given a status code, mimetype, and content. If mimetype or content
  * are NULL, they will not be included in the response.
  */
-char* make_response(httpcode_t code, const char* mimetype, const unsigned char* content, int content_len);
+char* http_make_response(
+    httpcode_t code,
+    const char* mimetype,
+    const unsigned char* content,
+    int content_len
+);
 
 /**
  * Returns the string message associated with the given HTTP code, eg. "Not Found" for 404.
  */
-const char *code_to_str(httpcode_t code);
+const char *http_code_to_str(httpcode_t code);
 
 void print_request(const request_t *request);
 

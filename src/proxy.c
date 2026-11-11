@@ -36,8 +36,8 @@ int main() {
         httpcode_t httpcode;
         request_t *request = http_receive_request(&reader, &sockcode, &httpcode);
 
-        printf("%d %s\n", sockcode, code_to_str(httpcode));
-        // print_request(request);
+        printf("%d %s\n", sockcode, http_code_to_str(httpcode));
+        print_request(request);
 
         if (request != NULL) free_request(request);
         close_socket(&client_sock);
