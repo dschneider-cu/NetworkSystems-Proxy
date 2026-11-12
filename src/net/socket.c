@@ -233,7 +233,7 @@ int sockreader_readline(sockreader_t *reader) {
     reader->line[reader->data_len] = '\0';
 
     // Find next line in the buffer
-    int nl_idx = strnfind(reader->line, '\n', reader->len);
+    int nl_idx = strnfind(reader->line, '\n', reader->data_len);
     if (nl_idx != -1) {
         // Full line is in the buffer
         reader->len = nl_idx + 1;
@@ -242,7 +242,7 @@ int sockreader_readline(sockreader_t *reader) {
 
     // Line is not complete - wait for more data
     while (true) {
-        if (reader->len >= SOCKET_RECV_LINE_MAX_LEN) {
+        if (reader->data_len >= SOCKET_RECV_LINE_MAX_LEN) {
             elog("Line exceeded maximum length");
             return SOCKET_ERR;
         }
