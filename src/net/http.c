@@ -368,7 +368,7 @@ httpcode_t http_receive_response(
             // Socket error occurred
             *out_sockcode = sockcode;
             return HTTP_INTERNAL_SERVER_ERROR;
-        } else if (sockcode != HTTP_OK) {
+        } else if (sockcode != SOCKET_SUCCESS) {
             // HTTP error occurred
             *out_sockcode = SOCKET_SUCCESS;
             return (httpcode_t) sockcode;
@@ -482,10 +482,12 @@ const char *http_code_to_str(httpcode_t code) {
             return "Not Found";
         case HTTP_METHOD_NOT_ALLOWED:
             return "Method Not Allowed";
+        case HTTP_INTERNAL_SERVER_ERROR:
+            return "Internal Server Error";
         case HTTP_HTTP_VERSION_NOT_SUPPORTED:
             return "HTTP Version Not Supported";
         default:
-            return "Internal Server Error";
+            return "Unknown HTTP code";
     }
 }
 
