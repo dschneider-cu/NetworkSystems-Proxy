@@ -3,7 +3,7 @@ CFLAGS := -Wall -Wextra -O0 -g
 LIBS   := -lssl -lcrypto
 
 TARGET      := proxy
-TEST_TARGET := test
+CLIENT_TARGET := client
 CACHE_DIR   := cache
 
 # Find all c files in src/
@@ -11,10 +11,10 @@ SRCS = $(shell find src -name "*.c")
 # Place .o files in obj/
 OBJS = $(patsubst src/%.c, obj/%.o, $(SRCS))
 
-PROXY_OBJS := obj/proxy.o $(filter-out obj/proxy.o obj/test.o, $(OBJS))
-TEST_OBJS  := obj/test.o  $(filter-out obj/proxy.o obj/test.o, $(OBJS))
+PROXY_OBJS := obj/proxy.o $(filter-out obj/proxy.o obj/client.o, $(OBJS))
+CLIENT_OBJS  := obj/client.o  $(filter-out obj/proxy.o obj/client.o, $(OBJS))
 
-.PHONY: all proxy test clean
+.PHONY: all proxy client clean
 
 all: proxy
 
@@ -22,7 +22,7 @@ all: proxy
 $(TARGET): $(PROXY_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-$(TEST_TARGET): $(TEST_OBJS)
+$(CLIENT_TARGET): $(CLIENT_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 # Compile all .c to .o
@@ -31,4 +31,4 @@ obj/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(TARGET) $(TEST_TARGET) obj $(CACHE_DIR)/*
+	rm -rf $(TARGET) $(client_TARGET) obj $(CACHE_DIR)/*

@@ -1,6 +1,6 @@
 /obj
-/test
 /proxy
+/client
 /cache/*
 *.o
 *.gch
