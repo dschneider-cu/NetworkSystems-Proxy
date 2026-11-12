@@ -45,6 +45,15 @@ void init_request(request_t *request) {
     linkedlist_init(&request->headers);
 }
 
+void init_response(response_t *response) {
+    response->nlines = 0;
+    response->complete = false;
+    response->respcode = HTTP_OK;
+    response->content = NULL;
+    response->content_len = 0;
+    linkedlist_init(&response->headers);
+}
+
 httpcode_t http_parse_start_line(request_t *request, char *line, int line_len) {
     if (request == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
 
@@ -225,13 +234,55 @@ httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request
     return HTTP_OK;
 }
 
+typedef struct {
+    response_t *resp;
+    resp_content_callback_t callback;
+} _resp_sockread_callback_ctx;
+
+int _resp_sockread_callback(sockreader_t *reader, char *chunk, int chunk_len, void *ctx) {
+    _resp_sockread_callback_ctx *respctx = (_resp_sockread_callback_ctx *)ctx;
+    httpcode_t code = respctx->callback(respctx->resp, chunk, chunk_len);
+    if (code != HTTP_OK) {
+        return code;
+    } else {
+        return SOCKET_SUCCESS;
+    }
+}
+
 httpcode_t http_receive_response(
     sockreader_t *reader,
     int *out_sockcode,
     response_t *out_response,
-    sockread_callback_t resp_content_callback
+    resp_content_callback_t content_callback
 ) {
-    return HTTP_INTERNAL_SERVER_ERROR;
+    int sockcode;
+    httpcode_t httpcode;
+    init_response(out_response);
+
+    // Parse start line
+
+    // Parse headers
+
+    // Get content length
+    int content_len;
+
+    // Receive content in chunks
+    _resp_sockread_callback_ctx ctx = {
+        out_response,
+        content_callback
+    };
+    sockcode = sockreader_readbytes(reader, content_len, _resp_sockread_callback, &ctx);
+    if (sockcode <= 0) {
+        // Socket error occurred
+        *out_sockcode = sockcode;
+        return HTTP_INTERNAL_SERVER_ERROR;
+    } else if (sockcode != HTTP_OK) {
+        *out_sockcode = SOCKET_SUCCESS;
+        return (httpcode_t)sockcode;
+    }
+
+    *out_sockcode = SOCKET_SUCCESS;
+    return HTTP_OK;
 }
 
 request_t *http_make_request(

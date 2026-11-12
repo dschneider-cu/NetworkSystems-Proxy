@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/socket.h>
 #include "socket.h"
 #include "../utils.h"
 
@@ -175,7 +176,12 @@ void init_sockreader(sockreader_t *reader, const socket_t *sock) {
     reader->line[0] = '\0';
 }
 
-int sockreader_readbytes(sockreader_t *reader, int bytes, sockread_callback_t callback) {
+int sockreader_readbytes(
+    sockreader_t *reader,
+    int bytes,
+    sockread_callback_t callback,
+    void *ctx
+) {
     if (bytes < 0) { return SOCKET_ERR; }
 
     // Clear line state, but preserve buffered data
@@ -200,7 +206,7 @@ int sockreader_readbytes(sockreader_t *reader, int bytes, sockread_callback_t ca
         // Process chunk with callback
         int chunk_len = min(reader->data_len - offset, bytes_left);
         if (callback != NULL) {
-            code = callback(reader, reader->line + offset, chunk_len);
+            code = callback(reader, reader->line + offset, chunk_len, ctx);
             if (code != SOCKET_SUCCESS) { break; }
         }
 

@@ -72,6 +72,11 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
 void init_request(request_t *request);
 
 /**
+ * Initializes a new response_t.
+ */
+void init_response(response_t *response);
+
+/**
  * Parse the start line (the first line) of an HTTP request.
  * Format: `"[method] [url] [version]"`
  * 
@@ -136,21 +141,24 @@ httpcode_t http_receive_request(
     request_t *out_request
 );
 
+/** Callback for processing received response content */
+typedef httpcode_t (*resp_content_callback_t)(response_t *response, char *chunk, int chunk_len);
+
 /**
  * Receives an HTTP response from a socket reader and outputs a parsed response.
  * 
  * @param reader Socket reader (must be initialized already)
  * @param out_sockcode Output parameter for the socket result code
  * @param out_response Output parameter for the parsed HTTP response
- * @param resp_content_callback Callback function to process chunks of the received content. Pass
- *      NULL to ignore.
+ * @param content_callback Callback function to process chunks of the received content. Return 
+ *      value other than HTTP_OK will cancel the receive.
  * @return An HTTP status code representing the result of the parsing
  */
 httpcode_t http_receive_response(
     sockreader_t *reader,
     int *out_sockcode,
     response_t *out_response,
-    sockread_callback_t resp_content_callback
+    resp_content_callback_t content_callback
 );
 
 /**

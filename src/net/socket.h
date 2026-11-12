@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 
 #define SOCKET_SUCCESS  1
@@ -143,9 +142,10 @@ void init_sockreader(sockreader_t *reader, const socket_t *sock);
  * @param reader Pointer back to the socket reader
  * @param chunk Pointer to the data chunk
  * @param chunk_len Length of the chunk in bytes
+ * @param ctx Arbitrary data to pass in
  * @return Status code. Return `SOCKET_SUCCESS` to indicate no error.
  */
-typedef int (*sockread_callback_t)(sockreader_t *reader, char *chunk, int chunk_len);
+typedef int (*sockread_callback_t)(sockreader_t *reader, char *chunk, int chunk_len, void *ctx);
 
 /**
  * Receive data from the socket until a certain number of bytes is received. The bytes will be
@@ -155,10 +155,16 @@ typedef int (*sockread_callback_t)(sockreader_t *reader, char *chunk, int chunk_
  * @param bytes Number of bytes to receive
  * @param callback Callback function to process a chunk of bytes. If the callback does not return
  *      success, the receive will be cancelled. Pass NULL to ignore data.
+ * @param ctx Arbitrary data to pass into callback
  * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
  *      error. If the callback returns something other than `SOCKET_SUCCESS`, returns that.
  */
-int sockreader_readbytes(sockreader_t *reader, int bytes, sockread_callback_t callback);
+int sockreader_readbytes(
+    sockreader_t *reader,
+    int bytes,
+    sockread_callback_t callback,
+    void *ctx
+);
 
 /**
  * Receive data from the socket until a complete line is received. 
