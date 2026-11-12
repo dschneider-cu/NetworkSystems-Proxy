@@ -15,7 +15,7 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
 
     if (request->nlines == 0) {
         // First line
-        code = http_parse_start_line(&request->startline, line, line_len);
+        code = http_parse_start_line(request, line, line_len);
     } else if (line_len == 0) {
         // Blank line; end of headers
         request->complete = true;
@@ -39,15 +39,15 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
 void init_request(request_t *request) {
     request->nlines = 0;
     request->complete = false;
-    request->startline.method = NULL;
-    request->startline.url = NULL;
-    request->startline.version = NULL;
+    request->method = NULL;
+    request->url = NULL;
+    request->version = NULL;
     request->_crlf_cntr = 0;
     linkedlist_init(&request->headers);
 }
 
-httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len) {
-    if (startline == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
+httpcode_t http_parse_start_line(request_t *request, char *line, int line_len) {
+    if (request == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
 
     // start of current segment (method, url, or version) in line
     int i = 0;
@@ -59,7 +59,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
     // Copy characters from i to j into method
-    startline->method = strnclone(&line[i], j - i);
+    request->method = strnclone(&line[i], j - i);
     // Consume space & move forward
     j++;
     i = j;
@@ -69,7 +69,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
     
     // Copy characters from i to j into url
-    startline->url = strnclone(&line[i], j - i);
+    request->url = strnclone(&line[i], j - i);
     // Consume space & move forward
     j++;
     i = j;
@@ -79,7 +79,7 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     if (i == j) { return HTTP_BAD_REQUEST; } // Empty string
 
     // Copy characters from i to j into version
-    startline->version = strnclone(&line[i], j - i);
+    request->version = strnclone(&line[i], j - i);
     
     return HTTP_OK;
 }
@@ -118,7 +118,7 @@ const char *http_get_header(const request_t *request, const char *name) {
 }
 
 httpcode_t http_parse_url(url_t *url, const request_t *request) {
-    char *urlstr = request->startline.url;
+    char *urlstr = request->url;
 
     // GET http://example.foo/hello HTTP/1.1
     //     ^url   ^host      ^path
@@ -171,7 +171,7 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
     if (host_in_url) {
         path = portstr + port_len;
     } else {
-        path = request->startline.url;
+        path = request->url;
     }
     path_len = strlen(path);
     
@@ -236,9 +236,9 @@ request_t *http_make_request(
     request_t *request = (request_t *)malloc(sizeof(request_t));
     if (request == NULL) return NULL;
 
-    request->startline.method = strclone(method);
-    request->startline.url = strclone(url);
-    request->startline.version = strclone(version);
+    request->method = strclone(method);
+    request->url = strclone(url);
+    request->version = strclone(version);
 
     // Headers
     linkedlist_init(&request->headers);
@@ -289,18 +289,14 @@ void free_header(header_t *header) {
     free(header->value);
 }
 
-void free_startline(startline_t *startline) {
-    if (startline->method != NULL) free(startline->method);
-    if (startline->url != NULL) free(startline->url);
-    if (startline->version != NULL) free(startline->version);
-}
-
 bool _ll_freeheader(int i, void *data) {
     free_header((header_t *)data);
     return false;
 }
 void free_request(request_t *request) {
-    free_startline(&request->startline);
+    if (request->method != NULL) free(request->method);
+    if (request->url != NULL) free(request->url);
+    if (request->version != NULL) free(request->version);
     linkedlist_foreach(&request->headers, _ll_freeheader);
     linkedlist_free(&request->headers, true);
 }
@@ -342,7 +338,7 @@ void print_request(const request_t *request) {
     );
     printf(
         "%s %s %s\n",
-        request->startline.version, request->startline.method, request->startline.url
+        request->version, request->method, request->url
     );
 
     linkedlist_foreach(&request->headers, _print_header);

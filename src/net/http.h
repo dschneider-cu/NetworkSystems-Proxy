@@ -25,13 +25,6 @@ typedef struct {
     char *value;
 } header_t;
 
-/** Struct for the first line of an HTTP request */
-typedef struct {
-    char *method;
-    char *url;
-    char *version;
-} startline_t;
-
 /**
  * Struct containing all information in an HTTP request: startline (method, url, version), and a
  * list of headers.
@@ -39,7 +32,9 @@ typedef struct {
  */
 typedef struct {
     int nlines;
-    startline_t startline;
+    char *method;
+    char *url;
+    char *version;
     linkedlist_t headers; // data will be a header_t*
     bool complete;        // Whether the request is done parsing
 
@@ -82,12 +77,12 @@ void init_request(request_t *request);
  * Parse the start line (the first line) of an HTTP request.
  * Format: `"[method] [url] [version]"`
  * 
- * @param startline Result startline_t struct that will be filled in
+ * @param request Request struct
  * @param line Line string. No trailing whitespace.
  * @param line_len Length of the line string
  * @returns An HTTP status code representing the result of the parsing
  */
-httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len);
+httpcode_t http_parse_start_line(request_t *request, char *line, int line_len);
 
 /**
  * Parse an HTTP header from a line string.
@@ -111,7 +106,7 @@ const char *http_get_header(const request_t *request, const char *name);
 
 /**
  * Parse a URL into host, path, and port given a request. The strings in the resulting url struct
- * will point to indices in the `request->startline.url` string so they will *not* be null
+ * will point to indices in the `request->url` string so they will *not* be null
  * terminated.
  * 
  * @param url Result URL struct that will be filled in
@@ -179,11 +174,6 @@ char* http_make_response(
     const unsigned char* content,
     int content_len
 );
-
-/**
- * Free memory inside a startline_t. Does not free `s` itself if it was allocated with malloc.
- */
-void free_startline(startline_t *startline);
 
 /**
  * Free memory inside a header_t. Does not free `h` itself if it was allocated with malloc.
