@@ -14,9 +14,9 @@ OBJS = $(patsubst src/%.c, obj/%.o, $(SRCS))
 PROXY_OBJS  := obj/proxy.o $(filter-out obj/proxy.o obj/client.o, $(OBJS))
 CLIENT_OBJS := obj/client.o  $(filter-out obj/proxy.o obj/client.o, $(OBJS))
 
-.PHONY: all proxy client clean
+.PHONY: all clean
 
-all: proxy client
+all: $(TARGET) $(CLIENT_TARGET)
 
 # Build proxy binary
 $(TARGET): $(PROXY_OBJS)
