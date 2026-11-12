@@ -282,7 +282,7 @@ const char *ip_to_str(uint32_t ip) {
     addr.s_addr = ip;
 
     inet_ntop(AF_INET, &addr, buffer, sizeof(buffer));
-    buffer[INET6_ADDRSTRLEN-1] = '\0'; // just in case
+    buffer[INET_ADDRSTRLEN-1] = '\0'; // just in case
     return buffer;
 }
 
