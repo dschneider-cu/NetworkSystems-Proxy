@@ -316,31 +316,41 @@ request_t *http_make_request(
     return request;
 }
 
-char *http_make_response(httpcode_t code, const char* mimetype, const unsigned char* content, int content_len) {
-    if (mimetype == NULL || content == NULL || content_len == 0) {
-        char *resp = (char *)malloc(256); // enough space for response
-        sprintf(resp, "HTTP/1.1 %d %s\r\n\r\n", code, http_code_to_str(code));
-        return resp;
-    } else {
-        char *resp = (char *)malloc(256 + content_len); // enough space for headers & content
-        int bytes_written = sprintf(
-            resp,
-            "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n",
-            code,
-            http_code_to_str(code),
-            mimetype,
-            content_len
-        );
+response_t *http_make_response(
+    httpcode_t code,
+    const char **headers,
+    int nheaders,
+    const char *content,
+    int content_len
+) {
+    response_t *response = (response_t *)malloc(sizeof(response_t));
+    if (response == NULL) return NULL;
 
-        // Write content
-        int i = 0;
-        for (; i < content_len; i++) {
-            resp[bytes_written + i] = (char)content[i];
-        }
-        // Write null terminator
-        resp[bytes_written + i + 1] = '\0';
-        return resp;
+    response->respcode = code;
+    response->content_len = content_len;
+
+    // Headers
+    linkedlist_init(&response->headers);
+
+    for (int i = 0; i < nheaders; i++) {
+        header_t *h = (header_t *)malloc(sizeof(header_t));
+        h->name = strclone(headers[i*2]);
+        h->value = strclone(headers[i*2+1]);
+
+        linkedlist_push(&response->headers, h);
     }
+
+    // Copy content
+    if (content_len > 0) {
+        response->content = strnclone(content, content_len);
+    } else {
+        response->content = NULL;
+    }
+
+    response->nlines = nheaders + 1;
+    response->complete = true;
+
+    return response;
 }
 
 void free_header(header_t *header) {

@@ -169,7 +169,7 @@ httpcode_t http_receive_response(
  * @param version Version ("HTTP/1.0")
  * @param headers Array of headers; must be pairs of strings [name, value, name, value, ...]
  * @param nheaders Number of headers, should be length of `headers` / 2
- * @return An allocated request_t or NULL if parsing failed
+ * @return A heap allocated request_t or NULL if error
  */
 request_t *http_make_request(
     const char *method,
@@ -180,8 +180,12 @@ request_t *http_make_request(
 );
 
 /**
- * Make an HTTP response string given a status code, mimetype, and content. If mimetype or content
- * are NULL, they will not be included in the response.
+ * Create a response_t
+ * 
+ * @param code HTTP response code
+ * @param headers Array of headers; must be pairs of strings [name, value, name, value, ...]
+ * @param nheaders Number of headers, should be length of `headers` / 2
+ * @return A heap allocated response_t or NULL if error
  */
 response_t* http_make_response(
     httpcode_t code,
