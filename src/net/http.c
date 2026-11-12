@@ -309,6 +309,12 @@ void free_request(request_t *request) {
     linkedlist_free(&request->headers, true);
 }
 
+void free_response(response_t *response) {
+    if (response->content != NULL) free(response->content);
+    linkedlist_foreach(&response->headers, _ll_freeheader);
+    linkedlist_free(&response->headers, true);
+}
+
 const char *http_code_to_str(httpcode_t code) {
     switch (code) {
         case HTTP_OK:

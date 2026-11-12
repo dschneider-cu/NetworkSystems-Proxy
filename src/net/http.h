@@ -43,6 +43,8 @@ typedef struct {
     int nlines;
     httpcode_t respcode;
     linkedlist_t headers; // data will be header_t*
+    const char *content;
+    int content_len;
     bool complete;        // Whether the response is done parsing
 } response_t;
 
@@ -174,18 +176,27 @@ request_t *http_make_request(
  * are NULL, they will not be included in the response.
  */
 response_t* http_make_response(
-    httpcode_t code
+    httpcode_t code,
+    const char **headers,
+    int nheaders,
+    const char *content,
+    int content_len
 );
 
 /**
- * Free memory inside a header_t. Does not free `h` itself if it was allocated with malloc.
+ * Free memory inside a header_t. Does not free `header` itself if it was allocated with malloc.
  */
 void free_header(header_t *header);
 
 /**
- * Free memory inside a request_t. Does not free `r` itself if it was allocated with malloc.
+ * Free memory inside a request_t. Does not free `request` itself if it was allocated with malloc.
  */
 void free_request(request_t *request);
+
+/**
+ * Free memory inside a response_t. Does not free `response` itself if it was allocated with malloc.
+ */
+void free_response(response_t *response);
 
 /**
  * Returns the string message associated with the given HTTP code, eg. "Not Found" for 404.
