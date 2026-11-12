@@ -199,8 +199,10 @@ int sockreader_readbytes(sockreader_t *reader, int bytes, sockread_callback_t ca
 
         // Process chunk with callback
         int chunk_len = min(reader->data_len - offset, bytes_left);
-        code = callback(reader, reader->line + offset, chunk_len);
-        if (code != SOCKET_SUCCESS) { break; }
+        if (callback != NULL) {
+            code = callback(reader, reader->line + offset, chunk_len);
+            if (code != SOCKET_SUCCESS) { break; }
+        }
 
         offset += chunk_len;
         bytes_left -= chunk_len;

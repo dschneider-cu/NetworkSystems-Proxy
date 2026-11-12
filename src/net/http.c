@@ -46,16 +46,6 @@ void init_request(request_t *request) {
     linkedlist_init(&request->headers);
 }
 
-bool _ll_freeheader(int i, void *data) {
-    free_header((header_t *)data);
-    return false;
-}
-void free_request(request_t *request) {
-    free_startline(&request->startline);
-    linkedlist_foreach(&request->headers, _ll_freeheader);
-    linkedlist_free(&request->headers, true);
-}
-
 httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len) {
     if (startline == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
 
@@ -92,12 +82,6 @@ httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_le
     startline->version = strnclone(&line[i], j - i);
     
     return HTTP_OK;
-}
-
-void free_startline(startline_t *startline) {
-    if (startline->method != NULL) free(startline->method);
-    if (startline->url != NULL) free(startline->url);
-    if (startline->version != NULL) free(startline->version);
 }
 
 httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
@@ -233,9 +217,13 @@ httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request
     return HTTP_OK;
 }
 
-void free_header(header_t *header) {
-    free(header->name);
-    free(header->value);
+httpcode_t http_receive_response(
+    sockreader_t *reader,
+    int *out_sockcode,
+    response_t *out_response,
+    sockread_callback_t resp_content_callback
+) {
+    return HTTP_INTERNAL_SERVER_ERROR;
 }
 
 request_t *http_make_request(
@@ -294,6 +282,27 @@ char *http_make_response(httpcode_t code, const char* mimetype, const unsigned c
         resp[bytes_written + i + 1] = '\0';
         return resp;
     }
+}
+
+void free_header(header_t *header) {
+    free(header->name);
+    free(header->value);
+}
+
+void free_startline(startline_t *startline) {
+    if (startline->method != NULL) free(startline->method);
+    if (startline->url != NULL) free(startline->url);
+    if (startline->version != NULL) free(startline->version);
+}
+
+bool _ll_freeheader(int i, void *data) {
+    free_header((header_t *)data);
+    return false;
+}
+void free_request(request_t *request) {
+    free_startline(&request->startline);
+    linkedlist_foreach(&request->headers, _ll_freeheader);
+    linkedlist_free(&request->headers, true);
 }
 
 const char *http_code_to_str(httpcode_t code) {

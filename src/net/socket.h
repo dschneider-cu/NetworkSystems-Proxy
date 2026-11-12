@@ -154,7 +154,7 @@ typedef int (*sockread_callback_t)(sockreader_t *reader, char *chunk, int chunk_
  * @param reader Socket reader
  * @param bytes Number of bytes to receive
  * @param callback Callback function to process a chunk of bytes. If the callback does not return
- *      success, the receive will be cancelled.
+ *      success, the receive will be cancelled. Pass NULL to ignore data.
  * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
  *      error. If the callback returns something other than `SOCKET_SUCCESS`, returns that.
  */

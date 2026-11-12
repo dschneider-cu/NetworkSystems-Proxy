@@ -9,6 +9,16 @@
 #define PORT_HTTPS 443
 #define PORT_MAX   65535
 
+typedef enum {
+    HTTP_OK = 200,
+    HTTP_BAD_REQUEST = 400,
+    HTTP_FORBIDDEN = 403,
+    HTTP_NOT_FOUND = 404,
+    HTTP_METHOD_NOT_ALLOWED = 405,
+    HTTP_INTERNAL_SERVER_ERROR = 500,
+    HTTP_HTTP_VERSION_NOT_SUPPORTED = 505
+} httpcode_t;
+
 /** Struct for an HTTP header */
 typedef struct {
     char *name;
@@ -39,22 +49,19 @@ typedef struct {
 } request_t;
 
 typedef struct {
+    int nlines;
+    httpcode_t respcode;
+    linkedlist_t headers; // data will be header_t*
+    bool complete;        // Whether the response is done parsing
+} response_t;
+
+typedef struct {
     const char *host; // Domain name
     int host_len;
     const char *path; // May be empty string
     int path_len;
     int port;
 } url_t;
-
-typedef enum {
-    HTTP_OK = 200,
-    HTTP_BAD_REQUEST = 400,
-    HTTP_FORBIDDEN = 403,
-    HTTP_NOT_FOUND = 404,
-    HTTP_METHOD_NOT_ALLOWED = 405,
-    HTTP_INTERNAL_SERVER_ERROR = 500,
-    HTTP_HTTP_VERSION_NOT_SUPPORTED = 505
-} httpcode_t;
 
 /**
  * Parse one line of an HTTP request and update the `out` struct accoringly.
@@ -72,11 +79,6 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
 void init_request(request_t *request);
 
 /**
- * Free memory inside a request_t. Does not free `r` itself if it was allocated with malloc.
- */
-void free_request(request_t *request);
-
-/**
  * Parse the start line (the first line) of an HTTP request.
  * Format: `"[method] [url] [version]"`
  * 
@@ -86,11 +88,6 @@ void free_request(request_t *request);
  * @returns An HTTP status code representing the result of the parsing
  */
 httpcode_t http_parse_start_line(startline_t *startline, char *line, int line_len);
-
-/**
- * Free memory inside a startline_t. Does not free `s` itself if it was allocated with malloc.
- */
-void free_startline(startline_t *startline);
 
 /**
  * Parse an HTTP header from a line string.
@@ -131,12 +128,28 @@ httpcode_t http_parse_url(url_t *url, const request_t *request);
  * @param out_request Output parameter for the parsed HTTP request
  * @return An HTTP status code representing the result of the parsing
  */
-httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request_t *out_request);
+httpcode_t http_receive_request(
+    sockreader_t *reader,
+    int *out_sockcode,
+    request_t *out_request
+);
 
 /**
- * Free memory inside a header_t. Does not free `h` itself if it was allocated with malloc.
+ * Receives an HTTP response from a socket reader and outputs a parsed response.
+ * 
+ * @param reader Socket reader (must be initialized already)
+ * @param out_sockcode Output parameter for the socket result code
+ * @param out_response Output parameter for the parsed HTTP response
+ * @param resp_content_callback Callback function to process chunks of the received content. Pass
+ *      NULL to ignore.
+ * @return An HTTP status code representing the result of the parsing
  */
-void free_header(header_t *header);
+httpcode_t http_receive_response(
+    sockreader_t *reader,
+    int *out_sockcode,
+    response_t *out_response,
+    sockread_callback_t resp_content_callback
+);
 
 /**
  * Create a request_t from strings.
@@ -166,6 +179,21 @@ char* http_make_response(
     const unsigned char* content,
     int content_len
 );
+
+/**
+ * Free memory inside a startline_t. Does not free `s` itself if it was allocated with malloc.
+ */
+void free_startline(startline_t *startline);
+
+/**
+ * Free memory inside a header_t. Does not free `h` itself if it was allocated with malloc.
+ */
+void free_header(header_t *header);
+
+/**
+ * Free memory inside a request_t. Does not free `r` itself if it was allocated with malloc.
+ */
+void free_request(request_t *request);
 
 /**
  * Returns the string message associated with the given HTTP code, eg. "Not Found" for 404.
