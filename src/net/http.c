@@ -81,7 +81,7 @@ void init_request(request_t *request) {
 void init_response(response_t *response) {
     response->nlines = 0;
     response->complete = false;
-    response->respcode = HTTP_OK;
+    response->code = HTTP_OK;
     response->content = NULL;
     response->content_len = 0;
     linkedlist_init(&response->headers);
@@ -135,6 +135,11 @@ httpcode_t http_parse_status_line(response_t *response, char *line, int line_len
 
     // Find space (after version, before code)
     while (j < line_len && line[j] != ' ') { j++; }
+    if (i == j) { return HTTP_BAD_GATEWAY; } // Malformed response
+
+    // Copy characters from i to j into version
+    response->version = strnclone(&line[i], j - i);
+    // Consume space & move forward
     j++;
     i = j;
 
@@ -147,11 +152,11 @@ httpcode_t http_parse_status_line(response_t *response, char *line, int line_len
     int len;
     if (!strtoint(&line[i], &code, &len, false)) {
         line[j] = c;
-        return HTTP_BAD_REQUEST;
+        return HTTP_BAD_GATEWAY;
     }
     line[j] = c;
 
-    response->respcode = (httpcode_t) code;
+    response->code = (httpcode_t) code;
     return HTTP_OK;
 }
 
@@ -420,7 +425,7 @@ response_t *http_make_response(
     response_t *response = (response_t *)malloc(sizeof(response_t));
     if (response == NULL) return NULL;
 
-    response->respcode = code;
+    response->code = code;
     response->content_len = content_len;
 
     // Headers
@@ -526,8 +531,8 @@ void print_response(const response_t *response) {
         response->complete ? "true" : "false", response->nlines
     );
     printf(
-        "HTTP/x.x %d %s\n",
-        response->respcode, http_code_to_str(response->respcode)
+        "%s %d %s\n",
+        response->version, response->code, http_code_to_str(response->code)
     );
 
     linkedlist_foreach(&response->headers, _print_header);

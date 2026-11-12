@@ -16,6 +16,8 @@ typedef enum {
     HTTP_NOT_FOUND = 404,
     HTTP_METHOD_NOT_ALLOWED = 405,
     HTTP_INTERNAL_SERVER_ERROR = 500,
+    HTTP_BAD_GATEWAY = 502,
+    HTTP_GATEWAY_TIMEOUT = 504,
     HTTP_HTTP_VERSION_NOT_SUPPORTED = 505
 } httpcode_t;
 
@@ -41,7 +43,8 @@ typedef struct {
 
 typedef struct {
     int nlines;
-    httpcode_t respcode;
+    char *version;
+    httpcode_t code;
     linkedlist_t headers; // data will be header_t*
     char *content;
     int content_len;
@@ -173,6 +176,10 @@ httpcode_t http_receive_response(
     response_t *out_response,
     resp_content_callback_t content_callback
 );
+
+http_send_request(const request_t *request);
+
+http_send_response(const response_t *response);
 
 /**
  * Create a request_t from strings.
