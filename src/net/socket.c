@@ -184,11 +184,8 @@ int sockreader_readbytes(
 ) {
     if (bytes < 0) { return SOCKET_ERR; }
 
-    // Clear line state, but preserve buffered data
-    reader->len = 0;
-
     int bytes_left = bytes;
-    int offset = 0;
+    int offset = reader->len; // Consume current line
     int code = SOCKET_SUCCESS;
 
     while (bytes_left > 0) {
@@ -272,7 +269,7 @@ int sockreader_readline(sockreader_t *reader) {
 
 void make_addr(addr_t *out_addr, uint32_t ip, uint16_t port) {
     // Zero out the structure
-    memset(out_addr, 0, sizeof(out_addr));
+    memset(out_addr, 0, sizeof(addr_t));
     
     out_addr->sin_family = AF_INET;
     out_addr->sin_port = port;
