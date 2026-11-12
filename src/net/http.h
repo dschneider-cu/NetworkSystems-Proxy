@@ -88,6 +88,19 @@ void init_response(response_t *response);
 httpcode_t http_parse_start_line(request_t *request, char *line, int line_len);
 
 /**
+ * Parse the status line (the first line) of an HTTP response.
+ * Format: `"[version] [code] [text]"`
+ * 
+ * Version and text are ignored.
+ * 
+ * @param response Response struct
+ * @param line Line string. No leading whitespace.
+ * @param line_len Length of the line string
+ * @returns An HTTP status code representing the result of the parsing
+ */
+httpcode_t http_parse_status_line(response_t *response, char *line, int line_len);
+
+/**
  * Parse an HTTP header from a line string.
  * Format: `"[name]: [value]"`
  * 

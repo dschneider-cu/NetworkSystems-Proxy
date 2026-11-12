@@ -92,6 +92,36 @@ httpcode_t http_parse_start_line(request_t *request, char *line, int line_len) {
     return HTTP_OK;
 }
 
+httpcode_t http_parse_status_line(response_t *response, char *line, int line_len) {
+    if (response == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; }
+
+    // start of current segment in line
+    int i = 0;
+    // end of current segment in line
+    int j = 0;
+
+    // Find space (after version, before code)
+    while (j < line_len && line[j] != ' ') { j++; }
+    j++;
+    i = j;
+
+    // Find digits of code
+    while (j < line_len && line[j] >= '0' && line[j] <= '9') { j++; }
+
+    char c = line[j];
+    line[j] = '\0';
+    int code;
+    int len;
+    if (!strtoint(&line[i], &code, &len, false)) {
+        line[j] = c;
+        return HTTP_BAD_REQUEST;
+    }
+    line[j] = c;
+
+    response->respcode = (httpcode_t) code;
+    return HTTP_OK;
+}
+
 httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
     if (header == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; } 
     
