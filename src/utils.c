@@ -8,23 +8,6 @@
 #include <time.h>
 #include "utils.h"
 
-int parse_int(char *s) {
-    char *endptr;
-    long parsed = strtol(s, &endptr, 10);
-
-    // Check for overflow/underflow
-    if ((parsed == LONG_MAX || parsed == LONG_MIN) && errno == ERANGE) {
-        return -1;
-    }
-    
-    // Check if no digits were parsed
-    if (endptr == s) {
-        return -1;
-    }
-
-    return (int) parsed;
-}
-
 void init_rand() {
     srand((unsigned int) time(NULL));
 }
@@ -132,6 +115,16 @@ const char *strip(char *str, int *out_new_len) {
     return s;
 }
 
+const char *nstrip(const char *str, int len, int *out_new_len) {
+    int new_len = rnstrip(str, len);
+    int lstripped;
+    const char *s = lstrip(str, &lstripped);
+    if (out_new_len != NULL) {
+        *out_new_len = new_len - lstripped;
+    }
+    return s;
+}
+
 bool streq(const char *s1, const char *s2) {
     if (s1 == NULL || s2 == NULL) { return false; }
     return strcmp(s1, s2) == 0;
@@ -190,6 +183,8 @@ bool is_str_allin(const char *s, size_t len, const char *chset) {
 }
 
 bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing) {
+    if (s == NULL) return false;
+
     char *endptr;
     long val = strtol(s, &endptr, 10);
 
@@ -202,7 +197,7 @@ bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing) {
         return false;
     }
 
-    *out_len = endptr - s;
+    if (out_len != NULL) *out_len = endptr - s;
     *out = (int)val;
     return true;
 }

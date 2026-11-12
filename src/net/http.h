@@ -43,7 +43,7 @@ typedef struct {
     int nlines;
     httpcode_t respcode;
     linkedlist_t headers; // data will be header_t*
-    const char *content;
+    char *content;
     int content_len;
     bool complete;        // Whether the response is done parsing
 } response_t;
@@ -125,7 +125,7 @@ const char *http_get_request_header(const request_t *request, const char *name);
  * 
  * @param response Pointer to the response
  * @param name Name of the header to fetch
- * @return String value of the header, or NULL if the request doesn't have the header
+ * @return String value of the header, or NULL if the response doesn't have the header
  */
 const char *http_get_response_header(const response_t *response, const char *name);
 
@@ -229,6 +229,7 @@ void free_response(response_t *response);
 const char *http_code_to_str(httpcode_t code);
 
 void print_request(const request_t *request);
+void print_response(const response_t *response);
 void print_url(const url_t *url);
 
 #endif

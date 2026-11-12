@@ -29,15 +29,6 @@ extern bool VERBOSE;
 #define HEXDUMP_COL_WIDTH 24
 
 
-/**
- * Parses a number from a command line argument. Prints an error message and returns -1 if
- * it fails.
- * 
- * @param s input string
- * @return parsed int or -1
- */
-int parse_int(char *s);
-
 /** Initialize RNG */
 void init_rand();
 
@@ -71,13 +62,17 @@ void print_hexdump(const void *data, int data_len);
 /**
  * Modifies a string to strip whitespace from the right side of a null terminated string. 
  * 
+ * @param str String pointer
  * @return new length of the string
  */
 int rstrip(char *str);
 
 /**
- * Returns the length of the string with right side trailing whitespace removed.
+ * Returns the length of the string with right side trailing whitespace removed, without modifying
+ * the string.
  * 
+ * @param str String pointer
+ * @param len Length of the string
  * @return new length of the string
  */
 int rnstrip(const char *str, int len);
@@ -97,10 +92,21 @@ const char* lstrip(const char *str, int *out_num_stripped);
  * and rstrip.
  * 
  * @param str String pointer
- * @param out_new_len New length of the string (pass NULL to discard)
+ * @param out_new_len Output param for the new length of the string. Pass NULL to discard
  * @return New pointer to the string
  */
 const char *strip(char *str, int *out_new_len);
+
+/**
+ * Strips leading and trailing whitespace from a string without modifying the string. Returns a
+ * pointer to the new start of the string and outputs the new length.
+ * 
+ * @param str String pointer
+ * @param len Length of the string
+ * @param out_new_len New length of the string (pass NULL to discard)
+ * @return New pointer to the string 
+ */
+const char *nstrip(const char *str, int len, int *out_new_len);
 
 /**
  * Returns true if s1 and s2 are equal. Both must be null terminated.

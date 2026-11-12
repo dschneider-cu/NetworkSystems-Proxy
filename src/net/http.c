@@ -10,8 +10,9 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
     if (request->complete) { return HTTP_OK; }
 
     httpcode_t code = HTTP_INTERNAL_SERVER_ERROR;
-    line_len = rnstrip(line, line_len);
-    printf("%.*s [%d]\n", line_len, line, line_len);
+
+    // Strip whitespace
+    line = (char *)nstrip(line, line_len, &line_len);
 
     if (request->nlines == 0) {
         // First line
@@ -33,6 +34,38 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
 
     if (code != HTTP_OK) { return code; }
     request->nlines++;
+    return HTTP_OK;
+}
+
+httpcode_t http_parse_response_line(response_t *response, char *line, int line_len) {
+    if (response == NULL || line == NULL) { return HTTP_INTERNAL_SERVER_ERROR; }
+    if (response->complete) { return HTTP_OK; }
+
+    httpcode_t code = HTTP_INTERNAL_SERVER_ERROR;
+
+    // Strip whitespace
+    line = (char *)nstrip(line, line_len, &line_len);
+
+    if (response->nlines == 0) {
+        // First line
+        code = http_parse_status_line(response, line, line_len);
+    } else if (line_len == 0) {
+        // Blank line; end of headers
+        response->complete = true;
+        code = HTTP_OK;
+    } else if (line_len > 0) {
+        // Header line
+        header_t *h = (header_t *)malloc(sizeof(header_t));
+        code = http_parse_header(h, line, line_len);
+        if (code == HTTP_OK) {
+            linkedlist_push(&response->headers, h);
+        }
+    } else {
+        return HTTP_BAD_REQUEST;
+    }
+
+    if (code != HTTP_OK) { return code; }
+    response->nlines++;
     return HTTP_OK;
 }
 
@@ -143,7 +176,7 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
 bool _header_match(int i, const void *data, const void *criteria) {
     const char *name = (char *)criteria;
     header_t *header = (header_t *)data;
-    return streq(header->name, name);
+    return streq_icase(header->name, name);
 }
 
 const char *http_get_request_header(const request_t *request, const char *name) {
@@ -231,8 +264,8 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
 }
 
 httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request_t *out_request) {
-    int sockcode;
-    httpcode_t httpcode;
+    int sockcode = SOCKET_ERR;
+    httpcode_t httpcode = HTTP_INTERNAL_SERVER_ERROR;
     init_request(out_request);
 
     while (!out_request->complete) {
@@ -285,30 +318,61 @@ httpcode_t http_receive_response(
     response_t *out_response,
     resp_content_callback_t content_callback
 ) {
-    int sockcode;
-    httpcode_t httpcode;
+    int sockcode = SOCKET_ERR;
+    httpcode_t httpcode = HTTP_INTERNAL_SERVER_ERROR;
     init_response(out_response);
 
-    // Parse start line
+    while (!out_response->complete) {
+        // Receive line
+        sockcode = sockreader_readline(reader);
+        if (sockcode != SOCKET_SUCCESS) {
+            *out_sockcode = sockcode;
+            free_response(out_response);
+            return HTTP_INTERNAL_SERVER_ERROR;
+        }
 
-    // Parse headers
+        // Temporarily add null terminator
+        char c = reader->line[reader->len];
+        reader->line[reader->len] = '\0';
+
+        // Parse line
+        httpcode = http_parse_response_line(out_response, reader->line, reader->len);
+        if (httpcode != HTTP_OK) {
+            *out_sockcode = SOCKET_SUCCESS;
+            free_response(out_response);
+            return httpcode;
+        }
+
+        // Restore character
+        reader->line[reader->len] = c;
+    }
 
     // Get content length
-    int content_len;
+    int content_len = 0;
+    const char *cl_header = http_get_response_header(out_response, "Content-Length");
+    if (cl_header != NULL && !strtoint(cl_header, &content_len, NULL, false)) {
+        // Malformed Content-Length header value
+        *out_sockcode = SOCKET_SUCCESS;
+        free_response(out_response);
+        return HTTP_BAD_REQUEST;
+    }
 
     // Receive content in chunks
-    _resp_sockread_callback_ctx ctx = {
-        out_response,
-        content_callback
-    };
-    sockcode = sockreader_readbytes(reader, content_len, _resp_sockread_callback, &ctx);
-    if (sockcode <= 0) {
-        // Socket error occurred
-        *out_sockcode = sockcode;
-        return HTTP_INTERNAL_SERVER_ERROR;
-    } else if (sockcode != HTTP_OK) {
-        *out_sockcode = SOCKET_SUCCESS;
-        return (httpcode_t)sockcode;
+    if (content_len > 0) {
+        _resp_sockread_callback_ctx ctx = {
+            out_response,
+            content_callback
+        };
+        sockcode = sockreader_readbytes(reader, content_len, _resp_sockread_callback, &ctx);
+        if (sockcode <= 0) {
+            // Socket error occurred
+            *out_sockcode = sockcode;
+            return HTTP_INTERNAL_SERVER_ERROR;
+        } else if (sockcode != HTTP_OK) {
+            // HTTP error occurred
+            *out_sockcode = SOCKET_SUCCESS;
+            return (httpcode_t) sockcode;
+        }
     }
 
     *out_sockcode = SOCKET_SUCCESS;
@@ -447,6 +511,28 @@ void print_request(const request_t *request) {
     );
 
     linkedlist_foreach(&request->headers, _print_header);
+}
+
+void print_response(const response_t *response) {
+    if (response == NULL) {
+        printf("- HTTP Response -\nNULL\n");
+        return;
+    }
+
+    printf(
+        "- HTTP Response -\n[complete: %s nlines: %d]\n",
+        response->complete ? "true" : "false", response->nlines
+    );
+    printf(
+        "HTTP/x.x %d %s\n",
+        response->respcode, http_code_to_str(response->respcode)
+    );
+
+    linkedlist_foreach(&response->headers, _print_header);
+    
+    if (response->content != NULL) {
+        print_hexdump(response->content, response->content_len);
+    }
 }
 
 void print_url(const url_t *url) {
