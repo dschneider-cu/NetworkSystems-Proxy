@@ -105,6 +105,17 @@ const char* lstrip(const char *str, int *out_num_stripped) {
     return str + i;
 }
 
+const char* lnstrip(const char *str, int len, int *out_num_stripped) {
+    int i = 0;
+    while (i < len && str[i] != '\0' && isspace((unsigned char) str[i])) {
+        i++;
+    }
+    if (out_num_stripped != NULL) {
+        *out_num_stripped = i;
+    }
+    return str + i;
+}
+
 const char *strip(char *str, int *out_new_len) {
     int len = rstrip(str);
     int lstripped;
@@ -118,7 +129,7 @@ const char *strip(char *str, int *out_new_len) {
 const char *nstrip(const char *str, int len, int *out_new_len) {
     int new_len = rnstrip(str, len);
     int lstripped;
-    const char *s = lstrip(str, &lstripped);
+    const char *s = lnstrip(str, new_len, &lstripped);
     if (out_new_len != NULL) {
         *out_new_len = new_len - lstripped;
     }
