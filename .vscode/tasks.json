@@ -2,9 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Make test",
+            "label": "Make",
             "type": "shell",
-            "command": "make test",
+            "command": "make",
             "args": [],
             "group": {
                 "kind": "build",

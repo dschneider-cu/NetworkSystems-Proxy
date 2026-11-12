@@ -16,7 +16,7 @@ CLIENT_OBJS  := obj/client.o  $(filter-out obj/proxy.o obj/client.o, $(OBJS))
 
 .PHONY: all proxy client clean
 
-all: proxy
+all: proxy client
 
 # Build proxy binary
 $(TARGET): $(PROXY_OBJS)
