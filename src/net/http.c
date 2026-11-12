@@ -42,7 +42,6 @@ void init_request(request_t *request) {
     request->method = NULL;
     request->url = NULL;
     request->version = NULL;
-    request->_crlf_cntr = 0;
     linkedlist_init(&request->headers);
 }
 
@@ -108,8 +107,17 @@ bool _header_match(int i, const void *data, const void *criteria) {
     return streq(header->name, name);
 }
 
-const char *http_get_header(const request_t *request, const char *name) {
+const char *http_get_request_header(const request_t *request, const char *name) {
     header_t *header = (header_t *)linkedlist_find(&request->headers, _header_match, name);
+    if (header != NULL) {
+        return header->value;
+    } else {
+        return NULL;
+    }
+}
+
+const char *http_get_response_header(const response_t *response, const char *name) {
+    header_t *header = (header_t *)linkedlist_find(&response->headers, _header_match, name);
     if (header != NULL) {
         return header->value;
     } else {
@@ -142,7 +150,7 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
         host_in_url = true;
     } else {
         // Look for host in Host header
-        host = http_get_header(request, "Host");
+        host = http_get_request_header(request, "Host");
         port = PORT_HTTP;
         host_in_url = false;
 

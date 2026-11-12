@@ -37,10 +37,6 @@ typedef struct {
     char *version;
     linkedlist_t headers; // data will be a header_t*
     bool complete;        // Whether the request is done parsing
-
-    // Private variables
-    // counter for crlfs (used to detect when headers are done)
-    int _crlf_cntr;
 } request_t;
 
 typedef struct {
@@ -102,7 +98,16 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len);
  * @param name Name of the header to fetch
  * @return String value of the header, or NULL if the request doesn't have the header
  */
-const char *http_get_header(const request_t *request, const char *name);
+const char *http_get_request_header(const request_t *request, const char *name);
+
+/**
+ * Returns the value of the given header name.
+ * 
+ * @param response Pointer to the response
+ * @param name Name of the header to fetch
+ * @return String value of the header, or NULL if the request doesn't have the header
+ */
+const char *http_get_response_header(const response_t *response, const char *name);
 
 /**
  * Parse a URL into host, path, and port given a request. The strings in the resulting url struct
@@ -168,11 +173,8 @@ request_t *http_make_request(
  * Make an HTTP response string given a status code, mimetype, and content. If mimetype or content
  * are NULL, they will not be included in the response.
  */
-char* http_make_response(
-    httpcode_t code,
-    const char* mimetype,
-    const unsigned char* content,
-    int content_len
+response_t* http_make_response(
+    httpcode_t code
 );
 
 /**
