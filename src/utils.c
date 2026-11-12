@@ -33,6 +33,20 @@ double get_rand() {
     return (double) rand() / ((double) RAND_MAX + 1.0);
 }
 
+int min(int a, int b) {
+    return (a < b) ? a : b;
+}
+
+int max(int a, int b) {
+    return (a > b) ? a : b;
+}
+
+int clamp(int val, int min, int max) {
+    if (val < min) return min;
+    if (val > max) return max;
+    return val;
+}
+
 void fill_with_shuffled_range(int *arr, int start, int end) {
     int size = end - start;
     for (int i = 0; i < size; i++) {

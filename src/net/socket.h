@@ -36,8 +36,8 @@ typedef struct {
     const socket_t *sock;
     /** Length of the line */
     int len;
-    /** Number of bytes after the current line contained in the buffer */
-    int excess;
+    /** Total number of data bytes in the buffer (including line len & excess) */
+    int data_len;
     /**
      * Buffer containing the line text. The buffer will be null terminated but the line will *not*
      * be, as the buffer may contain parts of the next line(s). User `reader.len`.
@@ -138,9 +138,32 @@ void socket_recv_flush(const socket_t *sock);
 void init_sockreader(sockreader_t *reader, const socket_t *sock);
 
 /**
+ * Callback function to process a chunk of bytes received from a socket
+ * 
+ * @param reader Pointer back to the socket reader
+ * @param chunk Pointer to the data chunk
+ * @param chunk_len Length of the chunk in bytes
+ * @return Status code. Return `SOCKET_SUCCESS` to indicate no error.
+ */
+typedef int (*sockread_callback_t)(sockreader_t *reader, char *chunk, int chunk_len);
+
+/**
+ * Receive data from the socket until a certain number of bytes is received. The bytes will be
+ * received in chunks and processed by the callback function.
+ * 
+ * @param reader Socket reader
+ * @param bytes Number of bytes to receive
+ * @param callback Callback function to process a chunk of bytes. If the callback does not return
+ *      success, the receive will be cancelled.
+ * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
+ *      error. If the callback returns something other than `SOCKET_SUCCESS`, returns that.
+ */
+int sockreader_readbytes(sockreader_t *reader, int bytes, sockread_callback_t callback);
+
+/**
  * Receive data from the socket until a complete line is received. 
  * 
- * @param reader Reader struct
+ * @param reader Socket reader
  * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
  *      error.
  */

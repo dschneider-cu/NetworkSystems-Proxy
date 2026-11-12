@@ -44,6 +44,15 @@ void init_rand();
 /** Get a random double between 0.0 (inclusive) and 1.0 (exclusive) */
 double get_rand();
 
+/** Min of a and b */
+int min(int a, int b);
+
+/** Max of a and b */
+int max(int a, int b);
+
+/** Clamp val to between min and max */
+int clamp(int val, int min, int max);
+
 /** 
  * Shuffle integers between start (inclusive) and end (exclusive). `arr` should be an array with
  * at least `(end-start)*sizeof(int)` allocated. Only positive integers, pretty please.

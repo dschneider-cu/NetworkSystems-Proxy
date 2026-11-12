@@ -171,24 +171,66 @@ void socket_recv_flush(const socket_t *sock) {
 void init_sockreader(sockreader_t *reader, const socket_t *sock) {
     reader->sock = sock;
     reader->len = 0;
-    reader->excess = 0;
+    reader->data_len = 0;
     reader->line[0] = '\0';
 }
 
-int sockreader_readline(sockreader_t *reader) {
-    if (reader->excess > 0) {
-        // Remove the current line from the buffer and slide the next line to the beginning
-        memmove(reader->line, reader->line + reader->len, reader->excess);
+int sockreader_readbytes(sockreader_t *reader, int bytes, sockread_callback_t callback) {
+    if (bytes < 0) { return SOCKET_ERR; }
+
+    // Clear line state, but preserve buffered data
+    reader->len = 0;
+
+    int bytes_left = bytes;
+    int offset = 0;
+    int code = SOCKET_SUCCESS;
+
+    while (bytes_left > 0) {
+        // If the bytes in the buffer have all been processed, clear buffer and receive more
+        if (offset >= reader->data_len) {
+            int recv_len = min(bytes_left, SOCKET_RECV_LINE_MAX_LEN);
+
+            code = socket_recv(reader->sock, reader->line, recv_len);
+            if (code <= 0) { break; }
+
+            reader->data_len = code;
+            offset = 0;
+        }
+
+        // Process chunk with callback
+        int chunk_len = min(reader->data_len - offset, bytes_left);
+        code = callback(reader, reader->line + offset, chunk_len);
+        if (code != SOCKET_SUCCESS) { break; }
+
+        offset += chunk_len;
+        bytes_left -= chunk_len;
     }
-    reader->len = reader->excess;
-    reader->excess = 0;
-    reader->line[reader->len] = '\0';
+
+    // Remove processed bytes from the buffer, move excess to the beginning
+    if (offset > 0) {
+        reader->data_len -= offset;
+        if (reader->data_len > 0) {
+            memmove(reader->line, reader->line + offset, reader->data_len);
+        }
+    }
+    reader->line[reader->data_len] = '\0';
+
+    return code;
+}
+
+int sockreader_readline(sockreader_t *reader) {
+    // Remove the current line from the buffer and slide the next line to the beginning
+    if (reader->len > 0 && reader->data_len > reader->len) {
+        memmove(reader->line, reader->line + reader->len, reader->data_len - reader->len);
+    }
+    reader->data_len -= reader->len;
+    reader->len = 0;
+    reader->line[reader->data_len] = '\0';
 
     // Find next line in the buffer
     int nl_idx = strnfind(reader->line, '\n', reader->len);
     if (nl_idx != -1) {
         // Full line is in the buffer
-        reader->excess = reader->len - (nl_idx + 1);
         reader->len = nl_idx + 1;
         return SOCKET_SUCCESS;
     }
@@ -202,20 +244,20 @@ int sockreader_readline(sockreader_t *reader) {
 
         int received = socket_recv(
             reader->sock,
-            reader->line + reader->len,
-            SOCKET_RECV_LINE_MAX_LEN - reader->len
+            reader->line + reader->data_len,
+            SOCKET_RECV_LINE_MAX_LEN - reader->data_len
         );
+        int old_datalen = reader->data_len;
+        reader->data_len += received;
 
         if (received <= 0) { return received; }
-        
+
         // Search for a newline in the received data
-        nl_idx = strnfind(reader->line + reader->len, '\n', received);
+        nl_idx = strnfind(reader->line + old_datalen, '\n', received);
+        
         if (nl_idx != -1) {
-            reader->len += (nl_idx + 1);
-            reader->excess = received - (nl_idx + 1);
+            reader->len = old_datalen + (nl_idx + 1);
             return SOCKET_SUCCESS;
-        } else {
-            reader->len += received;
         }
     }
 }
