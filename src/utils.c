@@ -271,6 +271,7 @@ void linkedlist_push(linkedlist_t *list, void *data) {
 }
 
 void linkedlist_free(linkedlist_t *list, bool free_data) {
+    if (list == NULL || list->size == 0) return;
     llnode_t *node = list->head;
     llnode_t *next;
     while (node != NULL) {
@@ -301,7 +302,7 @@ void *linkedlist_get(const linkedlist_t *list, int i) {
 }
 
 void linkedlist_foreach(const linkedlist_t *list, llcallback_t f, void *ctx) {
-    if (f == NULL) { return; }
+    if (f == NULL || list->size == 0) { return; }
 
     llnode_t *node = list->head;
     int i = 0;

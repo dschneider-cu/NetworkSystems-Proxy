@@ -299,16 +299,19 @@ void http_make_response(
 
 /**
  * Free memory inside a header_t. Does not free `header` itself if it was allocated with malloc.
+ * No-op if header is already freed.
  */
 void free_header(header_t *header);
 
 /**
  * Free memory inside a request_t. Does not free `request` itself if it was allocated with malloc.
+ * No-op if request is already freed.
  */
 void free_request(request_t *request);
 
 /**
  * Free memory inside a response_t. Does not free `response` itself if it was allocated with malloc.
+ * No-op if response is already freed.
  */
 void free_response(response_t *response);
 

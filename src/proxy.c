@@ -7,9 +7,19 @@
 bool VERBOSE = true;
 
 httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
-    // todo: forward to client
-    printf("Chunk [%d bytes] \"%.*s\"\n", chunk_len, chunk_len, chunk);
+    socket_t *client_sock = (socket_t *)ctx;
+
+    // Forward content chunk to client
+    vlog("Chunk [%d bytes] \"%.*s\"\n", chunk_len, chunk_len, chunk);
+    int bytes_sent;
+    int sockcode = socket_send_all(client_sock, chunk, chunk_len, &bytes_sent);
+    vlog("Sent %d bytes to client", bytes_sent);
+    if (sockcode != SOCKET_SUCCESS) {
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     // todo: (extra credit) parse <a> and prefetch
+
     return HTTP_OK;
 }
 
@@ -85,9 +95,8 @@ void proxy_thread_main(socket_t *client_sock) {
     if (httpcode != HTTP_OK) {
         evlog("Error receiving request from client: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
-        free_request(&request);
         proxy_send_err(client_sock, httpcode);
-        return;
+        goto cleanup;
     }
     vlog("Received request from client:");
     if (VERBOSE) print_request(&request);
@@ -99,9 +108,8 @@ void proxy_thread_main(socket_t *client_sock) {
     // Connect to server
     httpcode = proxy_connect_to_server(&request, &server_sock);
     if (httpcode != HTTP_OK) {
-        free_request(&request);
         proxy_send_err(client_sock, httpcode);
-        return;
+        goto cleanup;
     }
     init_sockreader(&server_reader, &server_sock);
 
@@ -109,10 +117,9 @@ void proxy_thread_main(socket_t *client_sock) {
     sockcode = http_send_request(&request, &server_sock);
     if (sockcode != SOCKET_SUCCESS) {
         elog("Failed to send request to server: %s", sockcode_to_str(sockcode));
-        free_request(&request);
         httpcode = sockcode == SOCKET_TIMEOUT ? HTTP_GATEWAY_TIMEOUT : HTTP_BAD_GATEWAY;
         proxy_send_err(client_sock, httpcode);
-        return;
+        goto cleanup;
     }
     vlog("Forwarded request to server");
 
@@ -127,9 +134,8 @@ void proxy_thread_main(socket_t *client_sock) {
     if (httpcode != HTTP_OK) {
         elog("Error receiving response from server: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
-        free_response(&response);
         proxy_send_err(client_sock, httpcode);
-        return;
+        goto cleanup;
     }
     vlog("Received response from server:");
     if (VERBOSE) print_response(&response);
@@ -138,8 +144,7 @@ void proxy_thread_main(socket_t *client_sock) {
     sockcode = http_send_response(&response, client_sock);
     if (sockcode != SOCKET_SUCCESS) {
         elog("Failed to send response to client: %s", sockcode_to_str(sockcode));
-        free_response(&response);
-        return;
+        goto cleanup;
     }
     vlog("Forwarded response to client");
 
@@ -149,21 +154,22 @@ void proxy_thread_main(socket_t *client_sock) {
         &sockcode,
         &response,
         content_callback, // Forward response content to client
-        NULL // todo
+        client_sock
     );
     if (httpcode != HTTP_OK) {
         elog("Error receiving response content from server: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
-        free_response(&response);
-        proxy_send_err(client_sock, httpcode);
-        return;
+        // proxy_send_err(client_sock, httpcode);
+        goto cleanup;
     }
     vlog("Forwarded response content to client");
 
     // Clean up resources
-    free_response(&response);
-    close_socket(client_sock);
-    free(client_sock);
+    cleanup:
+        free_request(&request);
+        free_response(&response);
+        close_socket(client_sock);
+        free(client_sock);
 }
 
 int main() {
