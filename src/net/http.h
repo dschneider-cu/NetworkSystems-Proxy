@@ -262,16 +262,17 @@ int http_send_request(const request_t *request, const socket_t *sock);
 int http_send_response(const response_t *response, const socket_t *sock);
 
 /**
- * Create a request_t from strings.
+ * Create a request_t from strings
  *
+ * @param out_request Output param for the request
  * @param method HTTP method ("GET")
  * @param url Request url
  * @param version Version ("HTTP/1.0")
  * @param headers Array of headers; must be pairs of strings [name, value, name, value, ...]
  * @param nheaders Number of headers, should be length of `headers` / 2
- * @return A heap allocated request_t or NULL if error
  */
-request_t *http_make_request(
+void http_make_request(
+    request_t *out_request,
     const char *method,
     const char *url,
     const char *version,
@@ -282,12 +283,13 @@ request_t *http_make_request(
 /**
  * Create a response_t
  * 
+ * @param out_response Output param for the response
  * @param code HTTP response code
  * @param headers Array of headers; must be pairs of strings [name, value, name, value, ...]
  * @param nheaders Number of headers, should be length of `headers` / 2
- * @return A heap allocated response_t or NULL if error
  */
-response_t* http_make_response(
+void http_make_response(
+    response_t *out_response,
     httpcode_t code,
     const char **headers,
     int nheaders,

@@ -34,42 +34,49 @@ int main() {
         if (!socket_accept(&proxy_sock, &client_sock)) {
             continue;
         }
-        // todo: launch thread
+
+        // Launch thread
+
         init_sockreader(&client_reader, &client_sock);
 
         // Wait for request from client
-        httpcode_t httpcode = http_receive_response(&client_reader, &sockcode, &response);
-
-        printf("%d %s\n", sockcode, http_code_to_str(httpcode));
-        // print_response(&response);
-
+        httpcode_t httpcode = http_receive_request(&client_reader, &sockcode, &request);
         if (httpcode != HTTP_OK) {
             // make err response
-            free_response(&response);
+            free_request(&response);
             continue;
         }
 
-        // Convert request to text
-        int len = http_response_text_size(&response);
-        char *buf = (char *)malloc(len + 1);
-        http_write_response_text(&response, buf);
+        // Check blocklist
 
-        printf("\n\n\"%s\"\n", buf);
+        // Check cache
 
+        // Forward request to server
+
+        free_request(&request);
+
+        // Wait for response from server
+        httpcode = http_receive_response(
+            &server_reader,
+            &sockcode,
+            &response
+        );
+        if (httpcode != HTTP_OK) {
+            http_make_response(&response, httpcode, NULL, 0, NULL, 0);
+        }
+
+        // Forward response to client
+
+        // Receive response content from server
         httpcode = http_receive_response_content(
-            &client_reader,
+            &server_reader,
             &sockcode,
             &response,
-            content_callback,
-            NULL
+            content_callback, // Forward response content to client
+            NULL // todo
         );
-        printf("%d %s\n", httpcode, http_code_to_str(httpcode));
 
-        // Check cache or forward to server
-        // Receive response
-        // Forward response
 
-        // free_request(&request);
         free_response(&response);
         close_socket(&client_sock);
     }

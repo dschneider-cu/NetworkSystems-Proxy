@@ -549,72 +549,64 @@ int http_send_response(const response_t *response, const socket_t *sock) {
     return sockcode;
 }
 
-request_t *http_make_request(
+void http_make_request(
+    request_t *out_request,
     const char *method,
     const char *url,
     const char *version,
     const char **headers,
     int nheaders
 ) {
-    request_t *request = (request_t *)malloc(sizeof(request_t));
-    if (request == NULL) return NULL;
-
-    request->method = strclone(method);
-    request->url = strclone(url);
-    request->version = strclone(version);
+    out_request->method = strclone(method);
+    out_request->url = strclone(url);
+    out_request->version = strclone(version);
 
     // Headers
-    linkedlist_init(&request->headers);
+    linkedlist_init(&out_request->headers);
 
     for (int i = 0; i < nheaders; i++) {
         header_t *h = (header_t *)malloc(sizeof(header_t));
         h->name = strclone(headers[i*2]);
         h->value = strclone(headers[i*2+1]);
 
-        linkedlist_push(&request->headers, h);
+        linkedlist_push(&out_request->headers, h);
     }
 
-    request->nlines = nheaders + 1;
-    request->complete = true;
-
-    return request;
+    out_request->nlines = nheaders + 1;
+    out_request->complete = true;
 }
 
-response_t *http_make_response(
+void http_make_response(
+    response_t *out_response,
     httpcode_t code,
     const char **headers,
     int nheaders,
     const char *content,
     int content_len
 ) {
-    response_t *response = (response_t *)malloc(sizeof(response_t));
-    if (response == NULL) return NULL;
-
-    response->code = code;
-    response->content_len = content_len;
+    out_response->code = code;
+    out_response->content_len = content_len;
 
     // Headers
-    linkedlist_init(&response->headers);
+    linkedlist_init(&out_response->headers);
 
     for (int i = 0; i < nheaders; i++) {
         header_t *h = (header_t *)malloc(sizeof(header_t));
         h->name = strclone(headers[i*2]);
         h->value = strclone(headers[i*2+1]);
 
-        linkedlist_push(&response->headers, h);
+        linkedlist_push(&out_response->headers, h);
     }
 
     // Copy content
     if (content_len > 0) {
-        response->content = strnclone(content, content_len);
+        out_response->content = strnclone(content, content_len);
     } else {
-        response->content = NULL;
+        out_response->content = NULL;
     }
 
-    response->nlines = nheaders + 1;
-    response->complete = true;
-
-    return response;
+    out_response->nlines = nheaders + 1;
+    out_response->complete = true;
 }
 
 void free_header(header_t *header) {
