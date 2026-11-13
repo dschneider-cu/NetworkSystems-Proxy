@@ -44,6 +44,8 @@ void proxy_thread_main(socket_t *client_sock) {
         proxy_send_err(client_sock, httpcode);
         return;
     }
+    vlog("Received request from client:");
+    if (VERBOSE) print_request(&request);
 
     // Check blocklist
 
@@ -60,6 +62,7 @@ void proxy_thread_main(socket_t *client_sock) {
         proxy_send_err(client_sock, httpcode);
         return;
     }
+    vlog("Forwarded request to server");
 
     free_request(&request);
 
@@ -76,6 +79,8 @@ void proxy_thread_main(socket_t *client_sock) {
         proxy_send_err(client_sock, httpcode);
         return;
     }
+    vlog("Received response from server:");
+    if (VERBOSE) print_response(&response);
 
     // Forward response to client
     sockcode = http_send_response(&response, client_sock);
@@ -84,6 +89,7 @@ void proxy_thread_main(socket_t *client_sock) {
         free_response(&response);
         return;
     }
+    vlog("Forwarded response to client");
 
     // Wait for response content from server
     httpcode = http_receive_response_content(
@@ -100,6 +106,7 @@ void proxy_thread_main(socket_t *client_sock) {
         proxy_send_err(client_sock, httpcode);
         return;
     }
+    vlog("Forwarded response content to client");
 
     // Clean up resources
     free_response(&response);
