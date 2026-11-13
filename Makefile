@@ -1,6 +1,6 @@
 CC     := gcc
 CFLAGS := -Wall -Wextra -Wno-unused-parameter -O2 -g
-LIBS   := -lssl -lcrypto
+LIBS   := -lssl -lcrypto -pthread
 
 TARGET        := proxy
 CLIENT_TARGET := client
