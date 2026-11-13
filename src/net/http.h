@@ -180,10 +180,13 @@ httpcode_t http_receive_response(
 /** Calculates the size in bytes required for an HTTP header. Includes \r\n. */
 int http_header_text_size(const header_t *header);
 
-/** Calculates the size in bytes required for an HTTP request. */
+/** Calculates the text length required for an HTTP request. (Does not include null terminator) */
 int http_request_text_size(const request_t *request);
 
-/** Calculates the size in bytes required for an HTTP response. (Including content if it has it) */
+/**
+ * Calculates the size in bytes required for an HTTP response. (Including content if it has it)
+ * (Does not include null terminator)
+ */
 int http_response_text_size(const response_t *response);
 
 /**

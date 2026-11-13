@@ -385,7 +385,7 @@ httpcode_t http_receive_response(
     return HTTP_OK;
 }
 
-http_header_text_size(const header_t *header) {
+int http_header_text_size(const header_t *header) {
     // Add name length and value length
     // +2 for colon and space between name and value
     // +2 for \r\n
@@ -441,20 +441,39 @@ int http_response_text_size(const response_t *response) {
     return size;
 }
 
-void http_request_to_text(const request_t *request, char *buffer) {
+// Callback for writing header text to a buffer
+bool _write_header(int i, void *data, void *ctx) {
+    header_t *h = (header_t *)data;
+    char **buffer = (char **)ctx;
+    *buffer += sprintf(*buffer, "%s: %s\r\n", h->name, h->value);
+    return false;
+}
 
+void http_request_to_text(const request_t *request, char *buffer) {
+    if (!request->complete) return;
+
+    // Start line
+    buffer += sprintf(buffer, "%s %s %s\r\n", request->method, request->url, request->version);
+
+    // Headers
+    linkedlist_foreach(&request->headers, _write_header, &buffer);
+
+    // Ending blank line & null terminator
+    buffer[0] = '\r';
+    buffer[1] = '\n';
+    buffer[2] = '\0';
 }
 
 void http_response_to_text(const response_t *response, char *buffer) {
-
+    if (!response->complete) return;
 }
 
 int http_send_request(const request_t *request, const socket_t sock) {
-
+    return SOCKET_ERR;
 }
 
 int http_send_response(const response_t *response, const socket_t sock) {
-    
+    return SOCKET_ERR;
 }
 
 request_t *http_make_request(
@@ -587,7 +606,7 @@ void print_request(const request_t *request) {
     );
     printf(
         "%s %s %s\n",
-        request->version, request->method, request->url
+        request->method, request->url, request->version
     );
 
     linkedlist_foreach(&request->headers, _print_header, NULL);
