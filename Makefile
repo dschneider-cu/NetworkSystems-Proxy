@@ -1,5 +1,5 @@
 CC     := gcc
-CFLAGS := -Wall -Wextra -Wno-unused-parameter -O2 -g
+CFLAGS := -Wall -Wextra -Wno-unused-parameter -O0 -g
 LIBS   := -lssl -lcrypto -pthread
 
 TARGET        := proxy

@@ -43,8 +43,9 @@ typedef struct {
 
 typedef struct {
     int nlines;
-    char *version;
     httpcode_t code;
+    char *version;
+    char *status_text;
     linkedlist_t headers; // data will be header_t*
     char *content;
     int content_len;

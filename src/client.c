@@ -59,6 +59,7 @@ void *client_receive(void *arg) {
             printf("[%d] %s\n", bytes, buf);
         } 
     }
+    return NULL;
 }
 
 int main(void) {

@@ -147,7 +147,7 @@ httpcode_t http_parse_status_line(response_t *response, char *line, int line_len
     while (j < line_len && line[j] >= '0' && line[j] <= '9') { j++; }
 
     char c = line[j];
-    line[j] = '\0';
+    line[j] = '\0'; // add temporary null terminator
     int code;
     int len;
     if (!strtoint(&line[i], &code, &len, false)) {
@@ -155,6 +155,12 @@ httpcode_t http_parse_status_line(response_t *response, char *line, int line_len
         return HTTP_BAD_GATEWAY;
     }
     line[j] = c;
+    // Consume space & move forward
+    j ++;
+    i = j;
+    
+    // Copy remaining characters to status_text
+    response->status_text = strclone(line + i);
 
     response->code = (httpcode_t) code;
     return HTTP_OK;
@@ -443,7 +449,7 @@ int http_response_text_size(const response_t *response) {
     // Add version length, code length (converted to str), and code text length
     int size = strlen(response->version) 
         + intstrlen(response->code) 
-        + strlen(httpcode_to_str(response->code));
+        + strlen(response->status_text);
     // +2 for spaces in between
     // +2 for \r\n
     size += 4;
@@ -496,7 +502,7 @@ void http_write_response_text(const response_t *response, char *buffer) {
     // Status line
     buffer += sprintf(
         buffer, "%s %d %s\r\n", 
-        response->version, response->code, httpcode_to_str(response->code)
+        response->version, response->code, response->status_text
     );
 
     // Headers
@@ -693,7 +699,7 @@ void print_response(const response_t *response) {
     );
     printf(
         "%s %d %s\n",
-        response->version, response->code, httpcode_to_str(response->code)
+        response->version, response->code, response->status_text
     );
 
     linkedlist_foreach(&response->headers, _print_header, NULL);
