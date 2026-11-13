@@ -82,6 +82,8 @@ void init_response(response_t *response) {
     response->nlines = 0;
     response->complete = false;
     response->code = HTTP_OK;
+    response->version = NULL;
+    response->status_text = NULL;
     response->content = NULL;
     response->content_len = 0;
     linkedlist_init(&response->headers);
@@ -592,6 +594,8 @@ void http_make_response(
 ) {
     out_response->code = code;
     out_response->content_len = content_len;
+    out_response->version = strclone("HTTP/1.1");
+    out_response->status_text = strclone(httpcode_to_str(code));
 
     // Headers
     linkedlist_init(&out_response->headers);
@@ -637,6 +641,8 @@ void free_request(request_t *request) {
 
 void free_response(response_t *response) {
     if (response->content != NULL) free(response->content);
+    if (response->version != NULL) free(response->version);
+    if (response->status_text != NULL) free(response->status_text);
     linkedlist_foreach(&response->headers, _ll_freeheader, NULL);
     linkedlist_free(&response->headers, true);
     init_response(response);
