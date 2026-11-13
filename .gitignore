@@ -2,5 +2,6 @@
 /proxy
 /client
 /cache/*
+/artifacts
 *.o
 *.gch
