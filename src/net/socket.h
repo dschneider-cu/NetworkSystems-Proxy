@@ -49,14 +49,12 @@ typedef struct {
  * socket was successfully created.
  * 
  * @param out_sock Uninitialized socket structure to fill
- * @param ip Socket IP address string in "xxx.xxx.xxx.xxx" format. "0.0.0.0" should generally be
- *      used for server sockets.
- * @param port Socket port
+ * @param addr Socket address. 0.0.0.0 should generally be used for server sockets.
  * @param type Socket type (SOCK_CLIENT or SOCK_SERVER). Server sockets bind to the given IP and
  *      listens for connections.
  * @return Whether the socket was successfully created
  */
-bool create_socket(socket_t *out_sock, const char *ip, uint16_t port, socktype_t type);
+bool create_socket(socket_t *out_sock, const addr_t *addr, socktype_t type);
 
 /**
  * Waits for TCP connections on a given server socket, and outputs a client socket when a
@@ -176,13 +174,24 @@ int sockreader_readbytes(
 int sockreader_readline(sockreader_t *reader);
 
 /**
- * Populates an addr_t given an IP address and port.
+ * Populates an addr_t given an IP address string and port.
  * 
  * @param out_addr Output parameter for the result addr_t
- * @param ip IP address in network-byte order
- * @param port Port in network-byte order
+ * @param ip IPv4 address string
+ * @param port Port in host-byte order
+ * @return Whether the address was created (IP is valid)
  */
-void make_addr(addr_t *out_addr, uint32_t ip, uint16_t port);
+bool make_addr(addr_t *out_addr, const char *ip, uint16_t port);
+
+/**
+ * Resolves a hostname via DNS and outputs an `addr_t`. Outputs only the first address returned by
+ * the DNS query.
+ * 
+ * @param hostname Domain name to resolve, eg "foo.example.com"
+ * @param out_addr Output parameter for the IP address of the host
+ * @return Whether the DNS query successfully returned an address
+ */
+bool resolve_hostname(const char *hostname, uint16_t port, addr_t *out_addr);
 
 /**
  * Converts a 32 bit integer IP address in network-byte order to a string. All calls to get_ip_str

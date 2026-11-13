@@ -21,6 +21,41 @@ void proxy_send_err(const socket_t *sock, httpcode_t code) {
     free_response(&resp);
 }
 
+/**
+ * Connects to the host in the given request and outputs a client socket to communicate with the
+ * server */
+httpcode_t proxy_connect_to_server(request_t *request, socket_t *out_server_sock) {
+    // Parse URL in request & extract hostname
+    url_t url;
+    httpcode_t httpcode = http_parse_url(&url, &request);
+    if (httpcode != HTTP_OK) {
+        elog("Failed to parse URL from request: %s", request->url);
+        return httpcode;
+    }
+    vlog("Server hostname: %.*s", url.host_len, url.host);
+
+    // Update Host header & path in request
+
+    // Resolve hostname into server IP address
+    char *hostname = strnclone(url.host, url.host_len);
+    addr_t server_addr;
+    if (!resolve_hostname(hostname, url.port, &server_addr)) {
+        elog("Failed to resolve hostname: %s", hostname);
+        free(hostname);
+        return HTTP_BAD_GATEWAY;
+    }
+    free(hostname);
+    vlog("Resolved server IP: %s:%d", get_ip_str(&server_addr), get_porth(&server_addr));
+
+    // Create a socket for the server
+    if (!create_socket(out_server_sock, &server_addr, SOCKET_CLIENT)) {
+        elog("Failed to create socket for server");
+        return HTTP_BAD_GATEWAY;
+    }
+
+    return HTTP_OK;
+}
+
 void proxy_thread_main(socket_t *client_sock) {
     socket_t server_sock;
     sockreader_t client_reader;
@@ -51,7 +86,12 @@ void proxy_thread_main(socket_t *client_sock) {
 
     // Check cache
 
-    // Connect to server
+    httpcode = proxy_connect_to_server(&request, &server_sock);
+    if (httpcode != HTTP_OK) {
+        free_request(&request);
+        proxy_send_err(client_sock, httpcode);
+        return;
+    }
 
     // Forward request to server
     sockcode = http_send_request(&request, &server_sock);
@@ -121,9 +161,11 @@ int main() {
     socket_t client_sock;
 
     // Create server socket, listen on port
-    if (!create_socket(&proxy_sock, "0.0.0.0", 5000, SOCKET_SERVER)) {
-        return 1;
-    }
+    const char *proxy_ip = "0.0.0.0";
+    uint16_t proxy_port = 5000; // todo: cli args
+    addr_t proxy_addr;
+    if (!make_addr(&proxy_addr, proxy_ip, proxy_port)) { return 1; }
+    if (!create_socket(&proxy_sock, &proxy_addr, SOCKET_SERVER)) { return 1; }
 
     while (true) {
         // Accept client socket

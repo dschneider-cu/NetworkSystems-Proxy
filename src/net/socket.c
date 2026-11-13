@@ -2,28 +2,22 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "socket.h"
 #include "../utils.h"
 
-bool create_socket(socket_t *out_sock, const char *ip, uint16_t port, socktype_t type) {
-    // Configure server ipv4 address
-    out_sock->addr.sin_family = AF_INET;
-	out_sock->addr.sin_port = htons(port);
-
-    // Convert IP from string & set server IP
-    if (inet_pton(AF_INET, ip, &out_sock->addr.sin_addr) <= 0) {
-        elog("Error: bad IP address: %s", ip);
-        return false;
-    }
-
+bool create_socket(socket_t *out_sock, const addr_t *addr, socktype_t type) {
     // Create socket (TCP)
     int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
         pelog("Error creating socket");
         return false;
     }
-
+    
     if (type == SOCKET_SERVER) {
         // Enable SO_REUSEADDR; prevents "Address already in use" after closing the server and
         // restarting
@@ -35,30 +29,31 @@ bool create_socket(socket_t *out_sock, const char *ip, uint16_t port, socktype_t
         }
         
         // Bind socket to address & port
-        if (bind(sock_fd, (struct sockaddr *)&out_sock->addr, sizeof(addr_t)) < 0) {
+        if (bind(sock_fd, (struct sockaddr *)addr, sizeof(addr_t)) < 0) {
             pelog("Error binding socket");
             close(sock_fd);
             return false;
         }
         vlog(
             "Socket %d created & bound to %s:%d",
-            sock_fd, get_ip_str(&out_sock->addr), get_porth(&out_sock->addr)
+            sock_fd, get_ip_str(addr), get_porth(addr)
         );
-
+        
         // Listen for client connections
         if (listen(sock_fd, SOCKET_MAX_TCP_CONNECTIONS) < 0) {
             pelog("Error listening to socket");
             close(sock_fd);
             return false;
         }
-        vlog("Listening on port %d...", get_porth(&out_sock->addr));
+        vlog("Listening on port %d...", get_porth(addr));
     } else {
         vlog(
             "Socket %d created for %s:%d",
-            sock_fd, get_ip_str(&out_sock->addr), get_porth(&out_sock->addr)
+            sock_fd, get_ip_str(addr), get_porth(addr)
         );
     }
-
+    
+    out_sock->addr = *addr;
     out_sock->fd = sock_fd;
     out_sock->type = type;
     return true;
@@ -267,13 +262,42 @@ int sockreader_readline(sockreader_t *reader) {
     }
 }
 
-void make_addr(addr_t *out_addr, uint32_t ip, uint16_t port) {
+bool make_addr(addr_t *out_addr, const char *ip, uint16_t port) {
     // Zero out the structure
     memset(out_addr, 0, sizeof(addr_t));
-    
+
+    // Configure server ipv4 address
     out_addr->sin_family = AF_INET;
-    out_addr->sin_port = port;
+	out_addr->sin_port = htons(port);
+    
+    // Convert IP from string & set server IP
+    if (inet_pton(AF_INET, ip, &out_addr->sin_addr) <= 0) {
+        elog("Error: bad IP address: %s", ip);
+        return false;
+    }
+    
     out_addr->sin_addr.s_addr = ip;
+    return true;
+}
+
+bool resolve_hostname(const char *hostname, uint16_t port, addr_t *out_addr) {
+    struct addrinfo hints;
+    struct addrinfo *result = NULL;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    int status = getaddrinfo(hostname, NULL, &hints, &result);
+
+    if (status != 0) return false;
+
+    addr_t *addr = (addr_t *)result->ai_addr;
+    *out_addr = *addr;
+    out_addr->sin_port = htons(port);
+
+    freeaddrinfo(result);
+    return true;
 }
 
 const char *ip_to_str(uint32_t ip) {
