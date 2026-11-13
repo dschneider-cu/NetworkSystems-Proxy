@@ -177,9 +177,54 @@ httpcode_t http_receive_response(
     resp_content_callback_t content_callback
 );
 
-http_send_request(const request_t *request);
+/** Calculates the size in bytes required for an HTTP header. Includes \r\n. */
+http_header_text_size(const header_t *header);
 
-http_send_response(const response_t *response);
+/** Calculates the size in bytes required for an HTTP request. */
+int http_request_text_size(const request_t *request);
+
+/** Calculates the size in bytes required for an HTTP response. (Including content if it has it) */
+int http_response_text_size(const response_t *response);
+
+/**
+ * Converts an HTTP request to text and places it in the buffer. Does nothing if the request is
+ * incomplete.
+ * 
+ * @param request HTTP request
+ * @param buffer Buffer for the text. Must be big enough to fit the text; use
+ *      `http_request_text_size`.
+ */
+void http_request_to_text(const request_t *request, char *buffer);
+
+/**
+ * Converts an HTTP response to text and places it in the buffer. Does nothing if the response is
+ * incomplete.
+ * 
+ * @param response HTTP response
+ * @param buffer Buffer for the text. Must be big enough to fit the text; use
+ *      `http_response_text_size`.
+ */
+void http_response_to_text(const response_t *response, char *buffer);
+
+/**
+ * Send an HTTP request on the given socket.
+ * 
+ * @param request HTTP request
+ * @param sock Socket to send on. Must be a client socket.
+ * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
+ *      error.
+ */
+int http_send_request(const request_t *request, const socket_t sock);
+
+/**
+ * Send an HTTP response on the given socket.
+ * 
+ * @param request HTTP response
+ * @param sock Socket to send on. Must be a client socket.
+ * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
+ *      error.
+ */
+int http_send_response(const response_t *response, const socket_t sock);
 
 /**
  * Create a request_t from strings.

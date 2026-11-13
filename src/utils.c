@@ -213,6 +213,30 @@ bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing) {
     return true;
 }
 
+int intstrlen(int n) {
+    int len = 0;
+    unsigned int val;
+
+    if (n < 0) {
+        len++; // minus sign
+        val = (unsigned int)(-(n + 1)) + 1; // avoid overflow INT_MIN
+    } else {
+        val = (unsigned int) n;
+    }
+
+    // len ~= log10(val)
+    do {
+        len++;
+        val /= 10;
+    } while (val > 0);
+
+    return len;
+}
+
+bool inttostr(int n, char *buffer) {
+    return sprintf(buffer, "%d", n) >= 0;
+}
+
 char *strclone(const char *s) {
     return strnclone(s, strlen(s));
 }
@@ -276,14 +300,14 @@ void *linkedlist_get(const linkedlist_t *list, int i) {
     return node->data;
 }
 
-void linkedlist_foreach(const linkedlist_t *list, llcallback_t f) {
+void linkedlist_foreach(const linkedlist_t *list, llcallback_t f, void *ctx) {
     if (f == NULL) { return; }
 
     llnode_t *node = list->head;
     int i = 0;
 
     while (node != NULL) {
-        if (f(i, node->data)) {
+        if (f(i, node->data, ctx)) {
             return;
         }
 
@@ -292,14 +316,14 @@ void linkedlist_foreach(const linkedlist_t *list, llcallback_t f) {
     }
 }
 
-void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria) {
+void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria, void *ctx) {
     if (match_fn == NULL) { return NULL; }
 
     llnode_t *node = list->head;
     int i = 0;
     
     while (node != NULL) {
-        if (match_fn(i, node->data, criteria)) {
+        if (match_fn(i, node->data, criteria, ctx)) {
             return node->data;
         }
 

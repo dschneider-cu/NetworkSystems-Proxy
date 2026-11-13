@@ -361,6 +361,7 @@ httpcode_t http_receive_response(
         free_response(out_response);
         return HTTP_BAD_REQUEST;
     }
+    out_response->content_len = content_len;
 
     // Receive content in chunks
     if (content_len > 0) {
@@ -382,6 +383,78 @@ httpcode_t http_receive_response(
 
     *out_sockcode = SOCKET_SUCCESS;
     return HTTP_OK;
+}
+
+http_header_text_size(const header_t *header) {
+    // Add name length and value length
+    // +2 for colon and space between name and value
+    // +2 for \r\n
+    return strlen(header->name) + strlen(header->value) + 4;
+}
+
+// Callback for summing header size linked list
+bool _sum_header_size(int i, void *data, void *ctx) {
+    int *sum = (int *)ctx;
+    header_t *h = (header_t *)data;
+    *sum += http_header_text_size(h);
+    return false;
+}
+
+int http_request_text_size(const request_t *request) {
+    // Add method, url, and version length
+    int size = strlen(request->method) 
+        + strlen(request->url) 
+        + strlen(request->version);
+    // +2 for spaces in between
+    // +2 for \r\n
+    size += 4;
+
+    // Add headers to sum
+    linkedlist_foreach(&request->headers, _sum_header_size, &size);
+
+    // +2 for ending \r\n
+    size += 2;
+
+    return size;
+}
+
+int http_response_text_size(const response_t *response) {
+    // Add version length, code length (converted to str), and code text length
+    int size = strlen(response->version) 
+        + intstrlen(response->code) 
+        + strlen(http_code_to_str(response->code));
+    // +2 for spaces in between
+    // +2 for \r\n
+    size += 4;
+
+    // Add headers to sum
+    linkedlist_foreach(&response->headers, _sum_header_size, &size);
+
+    // Add content length
+    if (response->content != NULL) {
+        size += response->content_len;
+    }
+
+    // +2 for ending \r\n
+    size += 2;
+
+    return size;
+}
+
+void http_request_to_text(const request_t *request, char *buffer) {
+
+}
+
+void http_response_to_text(const response_t *response, char *buffer) {
+
+}
+
+int http_send_request(const request_t *request, const socket_t sock) {
+
+}
+
+int http_send_response(const response_t *response, const socket_t sock) {
+    
 }
 
 request_t *http_make_request(

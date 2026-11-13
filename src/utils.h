@@ -156,6 +156,18 @@ bool is_str_allin(const char *s, size_t len, const char *chset);
 /** Converts a string to an integer. Returns false on error. */
 bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing);
 
+/**
+ * Converts an int into a string and writes it into `buffer`. Buffer size must be large enough to
+ * hold the string. Use `intstrlen`.
+ */
+bool inttostr(int n, char *buffer);
+
+/** 
+ * Returns the number of characters required to convert an int into a string (null terminator not 
+ * included.) 
+ */
+int intstrlen(int n);
+
 /** Copies a string into the heap */
 char *strclone(const char *s);
 
@@ -178,8 +190,8 @@ typedef struct {
     int size;
 } linkedlist_t;
 
-typedef bool (*llcallback_t)(int i, void *data);
-typedef bool (*llpredicate_t)(int i, const void *data, const void *criteria);
+typedef bool (*llcallback_t)(int i, void *data, void *ctx);
+typedef bool (*llpredicate_t)(int i, const void *data, const void *criteria, void *ctx);
 
 /** Initialize a new empty linked list. */
 void linkedlist_init(linkedlist_t *list);
@@ -199,15 +211,15 @@ int linkedlist_size(const linkedlist_t *list);
 void *linkedlist_get(const linkedlist_t *list, int i);
 
 /**
- * Iterate a linked list and call f(i, data) for each element. Stops iteration if the function
+ * Iterate a linked list and call f(i, data, ctx) for each element. Stops iteration if the function
  * returns true.
  */
-void linkedlist_foreach(const linkedlist_t *list, llcallback_t f);
+void linkedlist_foreach(const linkedlist_t *list, llcallback_t f, void *ctx);
 
 /**
- * Iterate a linked list and returns the first element where match_fn(data, critera) returns true.
- * Returns NULL if none matched the criteria.
+ * Iterate a linked list and returns the first element where match_fn(data, critera, ctx) returns
+ * true. Returns NULL if none matched the criteria.
  */
-void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria);
+void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria, void *ctx);
 
 #endif
