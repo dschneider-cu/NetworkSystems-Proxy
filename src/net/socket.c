@@ -132,7 +132,10 @@ int socket_recv(const socket_t *sock, void *buf, int len) {
 int socket_send(const socket_t *sock, const void *buf, int len) {
     int result = send(sock->fd, buf, len, MSG_NOSIGNAL);
     if (result == 0) { return SOCKET_CLOSED; }
-    else if (result < 0) { return SOCKET_ERR; }
+    else if (result < 0) {
+        pevlog("Socket error");
+        return SOCKET_ERR;
+    }
     else { return result; }
 }
 

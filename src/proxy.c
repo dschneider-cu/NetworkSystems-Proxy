@@ -7,7 +7,9 @@
 bool VERBOSE = true;
 
 httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
+    // todo: forward to client
     printf("Chunk [%d bytes] \"%.*s\"\n", chunk_len, chunk_len, chunk);
+    // todo: (extra credit) parse <a> and prefetch
     return HTTP_OK;
 }
 
@@ -34,7 +36,7 @@ httpcode_t proxy_connect_to_server(request_t *request, socket_t *out_server_sock
     }
     vlog("Server hostname: %.*s", url.host_len, url.host);
 
-    // Update Host header & path in request
+    // todo: Update Host header & path in request
 
     // Resolve hostname into server IP address
     char *hostname = strnclone(url.host, url.host_len);
@@ -50,6 +52,12 @@ httpcode_t proxy_connect_to_server(request_t *request, socket_t *out_server_sock
     // Create a socket for the server
     if (!create_socket(out_server_sock, &server_addr, SOCKET_CLIENT)) {
         elog("Failed to create socket for server");
+        return HTTP_BAD_GATEWAY;
+    }
+
+    // Connect to server (tcp handshake)
+    if (!socket_connect(out_server_sock)) {
+        elog("Failed to connect to server");
         return HTTP_BAD_GATEWAY;
     }
 
@@ -82,9 +90,9 @@ void proxy_thread_main(socket_t *client_sock) {
     vlog("Received request from client:");
     if (VERBOSE) print_request(&request);
 
-    // Check blocklist
+    // todo: Check blocklist
 
-    // Check cache
+    // todo: Check cache
 
     httpcode = proxy_connect_to_server(&request, &server_sock);
     if (httpcode != HTTP_OK) {
@@ -178,7 +186,7 @@ int main() {
         socket_t *client_sock_copy = (socket_t *)malloc(sizeof(socket_t));
         *client_sock_copy = client_sock;
 
-        // Launch thread
+        // todo: Launch thread
         proxy_thread_main(client_sock_copy);
     }
 }
