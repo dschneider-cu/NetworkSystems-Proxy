@@ -431,7 +431,9 @@ int http_response_text_size(const response_t *response) {
     linkedlist_foreach(&response->headers, _sum_header_size, &size);
 
     // Add content length
-    if (response->content != NULL) {
+    if (response->content != NULL && response->content_len > 0) {
+        // +2 for \r\n between headers and content
+        size += 2;
         size += response->content_len;
     }
 
@@ -453,19 +455,43 @@ void http_request_to_text(const request_t *request, char *buffer) {
     if (!request->complete) return;
 
     // Start line
-    buffer += sprintf(buffer, "%s %s %s\r\n", request->method, request->url, request->version);
+    buffer += sprintf(
+        buffer, "%s %s %s\r\n", 
+        request->method, request->url, request->version
+    );
 
     // Headers
     linkedlist_foreach(&request->headers, _write_header, &buffer);
 
     // Ending blank line & null terminator
-    buffer[0] = '\r';
-    buffer[1] = '\n';
-    buffer[2] = '\0';
+    *buffer++ = '\r';
+    *buffer++ = '\n';
+    *buffer++ = '\0';
 }
 
 void http_response_to_text(const response_t *response, char *buffer) {
     if (!response->complete) return;
+
+    // Status line
+    buffer += sprintf(
+        buffer, "%s %d %s\r\n", 
+        response->version, response->code, http_code_to_str(response->code)
+    );
+
+    // Headers
+    linkedlist_foreach(&response->headers, _write_header, &buffer);
+
+    // Content
+    if (response->content != NULL && response->content_len > 0) {
+        *buffer++ = '\r';
+        *buffer++ = '\n';
+        memcpy(buffer, response->content, response->content_len);
+    }
+
+    // Ending blank line & null terminator
+    *buffer++ = '\r';
+    *buffer++ = '\n';
+    *buffer++ = '\0';
 }
 
 int http_send_request(const request_t *request, const socket_t sock) {
