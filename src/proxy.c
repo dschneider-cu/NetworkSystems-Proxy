@@ -85,6 +85,7 @@ void proxy_thread_main(socket_t *client_sock) {
 
     // todo: timeout
     // todo: connection keep-open?
+    // todo: transfer chunked?
 
     init_request(&request);
     init_response(&response);
@@ -172,17 +173,26 @@ void proxy_thread_main(socket_t *client_sock) {
         free(client_sock);
 }
 
-int main() {
-    printf("Hello world\n");
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        printf("Usage: ./proxy <port>\n");
+        return 1;
+    }
+
+    // Parse port from command line args
+    const char *proxy_ip = "0.0.0.0";
+    int proxy_port;
+    if (!strtoint(argv[1], &proxy_port, NULL, true)) {
+        printf("Error: port must be a number\n");
+        return 1;
+    }
 
     socket_t proxy_sock;
     socket_t client_sock;
+    addr_t proxy_addr;
 
     // Create server socket, listen on port
-    const char *proxy_ip = "0.0.0.0";
-    uint16_t proxy_port = 5000; // todo: cli args
-    addr_t proxy_addr;
-    if (!make_addr(&proxy_addr, proxy_ip, proxy_port)) { return 1; }
+    if (!make_addr(&proxy_addr, proxy_ip, (uint16_t)proxy_port)) { return 1; }
     if (!create_socket(&proxy_sock, &proxy_addr, SOCKET_SERVER)) { return 1; }
 
     while (true) {

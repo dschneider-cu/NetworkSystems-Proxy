@@ -77,7 +77,6 @@ int main(void) {
         return 1;
     }
     pthread_detach(thread_id);
-    log("osdfsdflkdflsdkf");
     
     printf("> ");
     while (fgets(input, sizeof(input), stdin) != NULL) {
