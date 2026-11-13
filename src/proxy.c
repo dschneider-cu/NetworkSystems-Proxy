@@ -76,6 +76,8 @@ void proxy_thread_main(socket_t *client_sock) {
     // todo: timeout
     // todo: connection keep-open?
 
+    init_request(&request);
+    init_response(&response);
     init_sockreader(&client_reader, client_sock);
 
     // Wait for request from client
@@ -94,12 +96,14 @@ void proxy_thread_main(socket_t *client_sock) {
 
     // todo: Check cache
 
+    // Connect to server
     httpcode = proxy_connect_to_server(&request, &server_sock);
     if (httpcode != HTTP_OK) {
         free_request(&request);
         proxy_send_err(client_sock, httpcode);
         return;
     }
+    init_sockreader(&server_reader, &server_sock);
 
     // Forward request to server
     sockcode = http_send_request(&request, &server_sock);
