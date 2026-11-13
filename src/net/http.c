@@ -162,7 +162,7 @@ httpcode_t http_parse_status_line(response_t *response, char *line, int line_len
     i = j;
     
     // Copy remaining characters to status_text
-    response->status_text = strclone(line + i);
+    response->status_text = strnclone(line + i, line_len - i);
 
     response->code = (httpcode_t) code;
     return HTTP_OK;
