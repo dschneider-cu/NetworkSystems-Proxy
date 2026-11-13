@@ -31,4 +31,4 @@ obj/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(TARGET) $(client_TARGET) obj $(CACHE_DIR)/*
+	rm -rf $(TARGET) $(CLIENT_TARGET) obj $(CACHE_DIR)/*
