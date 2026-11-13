@@ -11,12 +11,14 @@ httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, vo
     return HTTP_OK;
 }
 
-void proxy_send_err(const socket_t *sock, httpcode_t code, response_t *out_response) {
-    http_make_response(&out_response, code, NULL, 0, NULL, 0);
-    int sockcode = http_send_response(out_response, sock);
+void proxy_send_err(const socket_t *sock, httpcode_t code) {
+    response_t resp;
+    http_make_response(&resp, code, NULL, 0, NULL, 0);
+    int sockcode = http_send_response(&resp, sock);
     if (sockcode != SOCKET_SUCCESS) {
         elog("Error sending response to client: %s", sockcode_to_str(sockcode));
     }
+    free_response(&resp);
 }
 
 void proxy_thread_main(socket_t *client_sock) {
@@ -28,6 +30,9 @@ void proxy_thread_main(socket_t *client_sock) {
     httpcode_t httpcode;
     int sockcode;
 
+    // todo: timeout
+    // todo: connection keep-open?
+
     init_sockreader(&client_reader, client_sock);
 
     // Wait for request from client
@@ -36,7 +41,7 @@ void proxy_thread_main(socket_t *client_sock) {
         evlog("Error receiving request from client: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
         free_request(&request);
-        proxy_send_err(client_sock, httpcode, &response);
+        proxy_send_err(client_sock, httpcode);
         return;
     }
 
@@ -44,7 +49,17 @@ void proxy_thread_main(socket_t *client_sock) {
 
     // Check cache
 
+    // Connect to server
+
     // Forward request to server
+    sockcode = http_send_request(&request, &server_sock);
+    if (sockcode != SOCKET_SUCCESS) {
+        elog("Failed to send request to server: %s", sockcode_to_str(sockcode));
+        free_request(&request);
+        httpcode = sockcode == SOCKET_TIMEOUT ? HTTP_GATEWAY_TIMEOUT : HTTP_BAD_GATEWAY;
+        proxy_send_err(client_sock, httpcode);
+        return;
+    }
 
     free_request(&request);
 
@@ -58,13 +73,19 @@ void proxy_thread_main(socket_t *client_sock) {
         elog("Error receiving response from server: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
         free_response(&response);
-        proxy_send_err(client_sock, httpcode, &response);
+        proxy_send_err(client_sock, httpcode);
         return;
     }
 
     // Forward response to client
+    sockcode = http_send_response(&response, client_sock);
+    if (sockcode != SOCKET_SUCCESS) {
+        elog("Failed to send response to client: %s", sockcode_to_str(sockcode));
+        free_response(&response);
+        return;
+    }
 
-    // Receive response content from server
+    // Wait for response content from server
     httpcode = http_receive_response_content(
         &server_reader,
         &sockcode,
@@ -73,12 +94,14 @@ void proxy_thread_main(socket_t *client_sock) {
         NULL // todo
     );
     if (httpcode != HTTP_OK) {
-        elog("Error receiving response from server: %s %s",
+        elog("Error receiving response content from server: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
-        proxy_send_err(client_sock, httpcode, &response);
+        free_response(&response);
+        proxy_send_err(client_sock, httpcode);
         return;
     }
 
+    // Clean up resources
     free_response(&response);
     close_socket(client_sock);
     free(client_sock);
