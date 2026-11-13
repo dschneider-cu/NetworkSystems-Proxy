@@ -302,26 +302,10 @@ httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request
     return HTTP_OK;
 }
 
-typedef struct {
-    response_t *resp;
-    resp_content_callback_t callback;
-} _resp_sockread_callback_ctx;
-
-int _resp_sockread_callback(sockreader_t *reader, char *chunk, int chunk_len, void *ctx) {
-    _resp_sockread_callback_ctx *respctx = (_resp_sockread_callback_ctx *)ctx;
-    httpcode_t code = respctx->callback(respctx->resp, chunk, chunk_len);
-    if (code != HTTP_OK) {
-        return code;
-    } else {
-        return SOCKET_SUCCESS;
-    }
-}
-
 httpcode_t http_receive_response(
     sockreader_t *reader,
     int *out_sockcode,
-    response_t *out_response,
-    resp_content_callback_t content_callback
+    response_t *out_response
 ) {
     int sockcode = SOCKET_ERR;
     httpcode_t httpcode = HTTP_INTERNAL_SERVER_ERROR;
@@ -361,26 +345,63 @@ httpcode_t http_receive_response(
         free_response(out_response);
         return HTTP_BAD_REQUEST;
     }
-    out_response->content_len = content_len;
 
-    // Receive content in chunks
-    if (content_len > 0) {
-        _resp_sockread_callback_ctx ctx = {
-            out_response,
-            content_callback
-        };
-        sockcode = sockreader_readbytes(reader, content_len, _resp_sockread_callback, &ctx);
-        if (sockcode <= 0) {
-            // Socket error occurred
-            *out_sockcode = sockcode;
-            return HTTP_INTERNAL_SERVER_ERROR;
-        } else if (sockcode != SOCKET_SUCCESS) {
-            // HTTP error occurred
-            *out_sockcode = SOCKET_SUCCESS;
-            return (httpcode_t) sockcode;
-        }
+    out_response->content_len = content_len;
+    *out_sockcode = SOCKET_SUCCESS;
+    return HTTP_OK;
+}
+
+typedef struct {
+    response_t *resp;
+    resp_content_callback_t callback;
+    void *ctx;
+} _resp_sockread_callback_ctx;
+
+int _resp_sockread_callback(sockreader_t *reader, char *chunk, int chunk_len, void *ctx) {
+    _resp_sockread_callback_ctx *respctx = (_resp_sockread_callback_ctx *)ctx;
+    httpcode_t code = respctx->callback(respctx->resp, chunk, chunk_len, respctx->ctx);
+    if (code != HTTP_OK) {
+        return code;
+    } else {
+        return SOCKET_SUCCESS;
+    }
+}
+
+httpcode_t http_receive_response_content(
+    sockreader_t *reader,
+    int *out_sockcode,
+    response_t *response,
+    resp_content_callback_t content_callback,
+    void *ctx
+) {
+    if (response->content_len <= 0) {
+        *out_sockcode = SOCKET_SUCCESS;
+        return HTTP_OK;
     }
 
+    _resp_sockread_callback_ctx respctx = {
+        response,
+        content_callback,
+        ctx
+    };
+    
+    int sockcode = sockreader_readbytes(
+        reader, 
+        response->content_len, 
+        _resp_sockread_callback, 
+        &respctx
+    );
+
+    if (sockcode <= 0) {
+        // Socket error occurred
+        *out_sockcode = sockcode;
+        return HTTP_INTERNAL_SERVER_ERROR;
+    } else if (sockcode != SOCKET_SUCCESS) {
+        // HTTP error occurred
+        *out_sockcode = SOCKET_SUCCESS;
+        return (httpcode_t) sockcode;
+    }
+    
     *out_sockcode = SOCKET_SUCCESS;
     return HTTP_OK;
 }

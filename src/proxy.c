@@ -6,7 +6,7 @@
 
 bool VERBOSE = true;
 
-httpcode_t callback(response_t *response, char *chunk, int chunk_len) {
+httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
     printf("Chunk [%d bytes] \"%.*s\"\n", chunk_len, chunk_len, chunk);
     return HTTP_OK;
 }
@@ -38,29 +38,39 @@ int main() {
         init_sockreader(&client_reader, &client_sock);
 
         // Wait for request from client
-        httpcode_t httpcode = http_receive_request(&client_reader, &sockcode, &request);
+        httpcode_t httpcode = http_receive_response(&client_reader, &sockcode, &response);
 
         printf("%d %s\n", sockcode, http_code_to_str(httpcode));
-        print_request(&request);
+        // print_response(&response);
 
         if (httpcode != HTTP_OK) {
             // make err response
-            free_request(&request);
+            free_response(&response);
             continue;
         }
 
         // Convert request to text
-        int len = http_request_text_size(&request);
+        int len = http_response_text_size(&response);
         char *buf = (char *)malloc(len + 1);
-        http_request_to_text(&request, buf);
+        http_response_to_text(&response, buf);
 
-        printf("\"%s\"\n", buf);
+        printf("\n\n\"%s\"\n", buf);
+
+        httpcode = http_receive_response_content(
+            &client_reader,
+            &sockcode,
+            &response,
+            content_callback,
+            NULL
+        );
+        printf("%d %s\n", httpcode, http_code_to_str(httpcode));
 
         // Check cache or forward to server
         // Receive response
         // Forward response
 
-        free_request(&request);
+        // free_request(&request);
+        free_response(&response);
         close_socket(&client_sock);
     }
 }

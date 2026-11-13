@@ -157,8 +157,23 @@ httpcode_t http_receive_request(
     request_t *out_request
 );
 
-/** Callback for processing received response content */
-typedef httpcode_t (*resp_content_callback_t)(response_t *response, char *chunk, int chunk_len);
+/**
+ * Callback for processing received response content. Chunk data exists only for the lifetime of
+ * this function. Do not save the pointer.
+ * 
+ * @param response Pointer to the response
+ * @param chunk Pointer to the chunk data
+ * @param chunk_len Length of the chunk in bytes
+ * @param ctx Arbitrary context to pass in
+ * @return An HTTP status code representing the result of processing the chunk. Anything other than
+ *      `HTTP_OK` will cancel the receive.
+ */
+typedef httpcode_t (*resp_content_callback_t)(
+    response_t *response,
+    char *chunk,
+    int chunk_len,
+    void *ctx
+);
 
 /**
  * Receives an HTTP response from a socket reader and outputs a parsed response.
@@ -166,15 +181,32 @@ typedef httpcode_t (*resp_content_callback_t)(response_t *response, char *chunk,
  * @param reader Socket reader (must be initialized already)
  * @param out_sockcode Output parameter for the socket result code
  * @param out_response Output parameter for the parsed HTTP response
- * @param content_callback Callback function to process chunks of the received content. Return 
- *      value other than HTTP_OK will cancel the receive.
  * @return An HTTP status code representing the result of the parsing
  */
 httpcode_t http_receive_response(
     sockreader_t *reader,
     int *out_sockcode,
-    response_t *out_response,
-    resp_content_callback_t content_callback
+    response_t *out_response
+);
+
+/**
+ * Receives HTTP response content from a socket reader. The content will be received in chunks and
+ * processed by calling `content_callback`. Does nothing if the response has no content.
+ * 
+ * @param reader Socket reader (must be initialized already)
+ * @param out_sockcode Output parameter for the socket result code
+ * @param response Output parameter for the parsed HTTP response
+ * @param content_callback Callback function to process chunks of the received content. See 
+ *      `resp_content_callback_t`
+ * @param ctx Arbitrary context which will be passed into `content_callback`
+ * @return An HTTP status code representing the result of the receive
+ */
+httpcode_t http_receive_response_content(
+    sockreader_t *reader,
+    int *out_sockcode,
+    response_t *response,
+    resp_content_callback_t content_callback,
+    void *ctx
 );
 
 /** Calculates the size in bytes required for an HTTP header. Includes \r\n. */
