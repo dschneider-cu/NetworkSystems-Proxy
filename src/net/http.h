@@ -226,20 +226,20 @@ int http_response_text_size(const response_t *response);
  * incomplete.
  * 
  * @param request HTTP request
- * @param buffer Buffer for the text. Must be big enough to fit the text; use
+ * @param buffer Buffer for the text + null terminator. Must be big enough to fit the text; use
  *      `http_request_text_size`.
  */
-void http_request_to_text(const request_t *request, char *buffer);
+void http_write_request_text(const request_t *request, char *buffer);
 
 /**
  * Converts an HTTP response to text and places it in the buffer. Does nothing if the response is
  * incomplete.
  * 
  * @param response HTTP response
- * @param buffer Buffer for the text. Must be big enough to fit the text; use
+ * @param buffer Buffer for the text + null terminator. Must be big enough to fit the text; use
  *      `http_response_text_size`.
  */
-void http_response_to_text(const response_t *response, char *buffer);
+void http_write_response_text(const response_t *response, char *buffer);
 
 /**
  * Send an HTTP request on the given socket.
@@ -249,7 +249,7 @@ void http_response_to_text(const response_t *response, char *buffer);
  * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
  *      error.
  */
-int http_send_request(const request_t *request, const socket_t sock);
+int http_send_request(const request_t *request, const socket_t *sock);
 
 /**
  * Send an HTTP response on the given socket.
@@ -259,7 +259,7 @@ int http_send_request(const request_t *request, const socket_t sock);
  * @return `SOCKET_SUCCESS` on success, `SOCKET_CLOSED` on graceful shutdown, or `SOCKET_ERR` on
  *      error.
  */
-int http_send_response(const response_t *response, const socket_t sock);
+int http_send_response(const response_t *response, const socket_t *sock);
 
 /**
  * Create a request_t from strings.

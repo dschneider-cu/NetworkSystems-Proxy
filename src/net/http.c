@@ -472,7 +472,7 @@ bool _write_header(int i, void *data, void *ctx) {
     return false;
 }
 
-void http_request_to_text(const request_t *request, char *buffer) {
+void http_write_request_text(const request_t *request, char *buffer) {
     if (!request->complete) return;
 
     // Start line
@@ -490,7 +490,7 @@ void http_request_to_text(const request_t *request, char *buffer) {
     *buffer++ = '\0';
 }
 
-void http_response_to_text(const response_t *response, char *buffer) {
+void http_write_response_text(const response_t *response, char *buffer) {
     if (!response->complete) return;
 
     // Status line
@@ -515,12 +515,38 @@ void http_response_to_text(const response_t *response, char *buffer) {
     *buffer++ = '\0';
 }
 
-int http_send_request(const request_t *request, const socket_t sock) {
-    return SOCKET_ERR;
+int http_send_request(const request_t *request, const socket_t *sock) {
+    // Allocate space for text
+    int size = http_request_text_size(request);
+    char *buffer = (char *)malloc(size + 1);
+    if (buffer == NULL) { return SOCKET_ERR; }
+
+    // Write request text to buffer
+    http_write_request_text(request, buffer);
+
+    // Send buffer
+    int sent;
+    int sockcode = socket_send_all(sock, buffer, size, &sent);
+    free(buffer);
+
+    return sockcode;
 }
 
-int http_send_response(const response_t *response, const socket_t sock) {
-    return SOCKET_ERR;
+int http_send_response(const response_t *response, const socket_t *sock) {
+    // Allocate space for text
+    int size = http_response_text_size(response);
+    char *buffer = (char *)malloc(size + 1);
+    if (buffer == NULL) { return SOCKET_ERR; }
+
+    // Write request text to buffer
+    http_write_response_text(response, buffer);
+
+    // Send buffer
+    int sent;
+    int sockcode = socket_send_all(sock, buffer, size, &sent);
+    free(buffer);
+
+    return sockcode;
 }
 
 request_t *http_make_request(

@@ -52,7 +52,7 @@ int main() {
         // Convert request to text
         int len = http_response_text_size(&response);
         char *buf = (char *)malloc(len + 1);
-        http_response_to_text(&response, buf);
+        http_write_response_text(&response, buf);
 
         printf("\n\n\"%s\"\n", buf);
 
