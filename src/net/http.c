@@ -178,14 +178,14 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
     return HTTP_OK;
 }
 
-bool _header_match(int i, const void *data, const void *criteria) {
+bool _header_match(int i, const void *data, const void *criteria, void *ctx) {
     const char *name = (char *)criteria;
     header_t *header = (header_t *)data;
     return streq_icase(header->name, name);
 }
 
 const char *http_get_request_header(const request_t *request, const char *name) {
-    header_t *header = (header_t *)linkedlist_find(&request->headers, _header_match, name);
+    header_t *header = (header_t *)linkedlist_find(&request->headers, _header_match, name, NULL);
     if (header != NULL) {
         return header->value;
     } else {
@@ -194,7 +194,7 @@ const char *http_get_request_header(const request_t *request, const char *name) 
 }
 
 const char *http_get_response_header(const response_t *response, const char *name) {
-    header_t *header = (header_t *)linkedlist_find(&response->headers, _header_match, name);
+    header_t *header = (header_t *)linkedlist_find(&response->headers, _header_match, name, NULL);
     if (header != NULL) {
         return header->value;
     } else {
@@ -530,7 +530,7 @@ void free_header(header_t *header) {
     free(header->value);
 }
 
-bool _ll_freeheader(int i, void *data) {
+bool _ll_freeheader(int i, void *data, void *ctx) {
     free_header((header_t *)data);
     return false;
 }
@@ -538,13 +538,13 @@ void free_request(request_t *request) {
     if (request->method != NULL) free(request->method);
     if (request->url != NULL) free(request->url);
     if (request->version != NULL) free(request->version);
-    linkedlist_foreach(&request->headers, _ll_freeheader);
+    linkedlist_foreach(&request->headers, _ll_freeheader, NULL);
     linkedlist_free(&request->headers, true);
 }
 
 void free_response(response_t *response) {
     if (response->content != NULL) free(response->content);
-    linkedlist_foreach(&response->headers, _ll_freeheader);
+    linkedlist_foreach(&response->headers, _ll_freeheader, NULL);
     linkedlist_free(&response->headers, true);
 }
 
@@ -569,7 +569,7 @@ const char *http_code_to_str(httpcode_t code) {
     }
 }
 
-bool _print_header(int i, void *data) {
+bool _print_header(int i, void *data, void *ctx) {
     header_t *h = (header_t *)data;
     printf("%s: %s\n", h->name, h->value);
     return false;
@@ -590,7 +590,7 @@ void print_request(const request_t *request) {
         request->version, request->method, request->url
     );
 
-    linkedlist_foreach(&request->headers, _print_header);
+    linkedlist_foreach(&request->headers, _print_header, NULL);
 }
 
 void print_response(const response_t *response) {
@@ -608,7 +608,7 @@ void print_response(const response_t *response) {
         response->version, response->code, http_code_to_str(response->code)
     );
 
-    linkedlist_foreach(&response->headers, _print_header);
+    linkedlist_foreach(&response->headers, _print_header, NULL);
     
     if (response->content != NULL) {
         print_hexdump(response->content, response->content_len);
