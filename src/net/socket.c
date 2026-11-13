@@ -276,7 +276,6 @@ bool make_addr(addr_t *out_addr, const char *ip, uint16_t port) {
         return false;
     }
     
-    out_addr->sin_addr.s_addr = ip;
     return true;
 }
 
