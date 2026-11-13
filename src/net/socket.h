@@ -201,6 +201,9 @@ uint16_t get_porth(const addr_t *addr);
 /** Extract the IP address from an addr_t and convert it to a string. */
 const char *get_ip_str(const addr_t *addr);
 
+/** Converts a socket code to a string */
+const char *sockcode_to_str(int code);
+
 /** Debug function to print socket info */
 void print_socket(const socket_t *sock);
 

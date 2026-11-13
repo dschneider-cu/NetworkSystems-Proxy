@@ -315,7 +315,7 @@ void free_response(response_t *response);
 /**
  * Returns the string message associated with the given HTTP code, eg. "Not Found" for 404.
  */
-const char *http_code_to_str(httpcode_t code);
+const char *httpcode_to_str(httpcode_t code);
 
 void print_request(const request_t *request);
 void print_response(const response_t *response);

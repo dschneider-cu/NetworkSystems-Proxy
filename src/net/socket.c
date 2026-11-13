@@ -306,6 +306,20 @@ const char *get_ip_str(const addr_t *addr) {
     return ip_to_str(get_ip(addr));
 }
 
+const char *sockcode_to_str(int code) {
+    if (code >= 1) {
+        return "SOCKET_SUCCESS";
+    } else if (code == SOCKET_CLOSED) {
+        return "SOCKET_CLOSED";
+    } else if (code == SOCKET_ERR) {
+        return "SOCKET_ERR";
+    } else if (code == SOCKET_TIMEOUT) {
+        return "SOCKET_TIMEOUT";
+    } else {
+        return "SOCKET_ERR_UNKNOWN";
+    }
+}
+
 void print_socket(const socket_t *sock) {
     const char *type;
     if (sock->type == SOCKET_CLIENT) {

@@ -443,7 +443,7 @@ int http_response_text_size(const response_t *response) {
     // Add version length, code length (converted to str), and code text length
     int size = strlen(response->version) 
         + intstrlen(response->code) 
-        + strlen(http_code_to_str(response->code));
+        + strlen(httpcode_to_str(response->code));
     // +2 for spaces in between
     // +2 for \r\n
     size += 4;
@@ -496,7 +496,7 @@ void http_write_response_text(const response_t *response, char *buffer) {
     // Status line
     buffer += sprintf(
         buffer, "%s %d %s\r\n", 
-        response->version, response->code, http_code_to_str(response->code)
+        response->version, response->code, httpcode_to_str(response->code)
     );
 
     // Headers
@@ -610,8 +610,10 @@ void http_make_response(
 }
 
 void free_header(header_t *header) {
-    free(header->name);
-    free(header->value);
+    if (header->name != NULL) free(header->name);
+    if (header->value != NULL) free(header->value);
+    header->name = NULL;
+    header->value = NULL;
 }
 
 bool _ll_freeheader(int i, void *data, void *ctx) {
@@ -624,15 +626,17 @@ void free_request(request_t *request) {
     if (request->version != NULL) free(request->version);
     linkedlist_foreach(&request->headers, _ll_freeheader, NULL);
     linkedlist_free(&request->headers, true);
+    init_request(request);
 }
 
 void free_response(response_t *response) {
     if (response->content != NULL) free(response->content);
     linkedlist_foreach(&response->headers, _ll_freeheader, NULL);
     linkedlist_free(&response->headers, true);
+    init_response(response);
 }
 
-const char *http_code_to_str(httpcode_t code) {
+const char *httpcode_to_str(httpcode_t code) {
     switch (code) {
         case HTTP_OK:
             return "OK";
@@ -689,7 +693,7 @@ void print_response(const response_t *response) {
     );
     printf(
         "%s %d %s\n",
-        response->version, response->code, http_code_to_str(response->code)
+        response->version, response->code, httpcode_to_str(response->code)
     );
 
     linkedlist_foreach(&response->headers, _print_header, NULL);
