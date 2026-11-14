@@ -127,6 +127,7 @@ void proxy_handle_client(socket_t *client_sock) {
     char *hostname = strnclone(url.host, url.host_len);
     if (blocklist_contains(&blocklist, hostname) || blocklist_contains(&blocklist, get_ip_str(&server_addr))) {
         // Host is blocked!
+        vlog("Host is blocked: %s %s", hostname, get_ip_str(&server_addr));
         proxy_send_err(client_sock, HTTP_FORBIDDEN);
         free(hostname);
         goto cleanup;
