@@ -50,9 +50,14 @@ void *client_receive(void *arg) {
     char buf[CLIENT_RECV_BUF_SIZE];
 
     while (true) {
-        int bytes = socket_recv(&sock, buf, CLIENT_RECV_BUF_SIZE - 1);
-        if (bytes <= 0) {
+        int bytes = socket_recv_wait(&sock, buf, CLIENT_RECV_BUF_SIZE - 1);
+        if (bytes == SOCKET_ERR) {
             elog("Recv failed with %s", sockcode_to_str(bytes));
+            break;
+        } else if (bytes == SOCKET_TIMEOUT) {
+            elog("Recv timed out.");
+        } else if (bytes == SOCKET_CLOSED) {
+            elog("Socket closed by proxy.");
             break;
         } else {
             buf[bytes] = '\0';

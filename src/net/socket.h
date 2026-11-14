@@ -33,6 +33,7 @@ typedef struct {
 
 typedef struct {
     const socket_t *sock;
+    int timeout_sec;
     /** Length of the line */
     int len;
     /** Total number of data bytes in the buffer (including line len & excess) */
@@ -78,7 +79,7 @@ bool socket_connect(const socket_t *sock);
 void close_socket(const socket_t *sock);
 
 /**
- * Receive bytes from the socket, with a timeout.
+ * Receive bytes from the socket with a timeout. If timeout is <= 0, waits forever.
  * 
  * @param sock_fd Socket file descriptor
  * @param buf Pointer to the buffer to store data
@@ -87,10 +88,10 @@ void close_socket(const socket_t *sock);
  * @return Number of bytes received on success, `SOCKET_CLOSED` on graceful shutdown,
  *      `SOCKET_ERR` on error, and `SOCKET_TIMEOUT` on timeout.
  */
-int socket_recv_timeout(const socket_t *sock, void *buf, int len, int timeout_sec);
+int socket_recv(const socket_t *sock, void *buf, int len, int timeout_sec);
 
 /**
- * Receive bytes from the socket.
+ * Receive bytes from the socket with no timeout (waits forever).
  * 
  * @param sock Pointer to the socket
  * @param buf Buffer for data to be put into
@@ -98,7 +99,7 @@ int socket_recv_timeout(const socket_t *sock, void *buf, int len, int timeout_se
  * @return Number of bytes received on success, `SOCKET_CLOSED` on graceful shutdown, or
  *      `SOCKET_ERR` on error.
  */
-int socket_recv(const socket_t *sock, void *buf, int len);
+int socket_recv_wait(const socket_t *sock, void *buf, int len);
 
 /**
  * Send bytes to the socket.
@@ -131,8 +132,9 @@ void socket_recv_flush(const socket_t *sock);
  * 
  * @param reader Uninitialized reader struct
  * @param sock Socket to read
+ * @param timeout_sec Seconds to wait before timeout. Pass 0 to wait forever.
  */
-void init_sockreader(sockreader_t *reader, const socket_t *sock);
+void init_sockreader(sockreader_t *reader, const socket_t *sock, int timeout_sec);
 
 /**
  * Callback function to process a chunk of bytes received from a socket

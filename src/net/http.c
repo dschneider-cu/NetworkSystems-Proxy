@@ -276,7 +276,11 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
     return HTTP_OK;
 }
 
-httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request_t *out_request) {
+httpcode_t http_receive_request(
+    sockreader_t *reader,
+    int *out_sockcode,
+    request_t *out_request
+) {
     int sockcode = SOCKET_ERR;
     httpcode_t httpcode = HTTP_INTERNAL_SERVER_ERROR;
     init_request(out_request);
@@ -287,7 +291,11 @@ httpcode_t http_receive_request(sockreader_t *reader, int *out_sockcode, request
         if (sockcode != SOCKET_SUCCESS) {
             *out_sockcode = sockcode;
             free_request(out_request);
-            return HTTP_INTERNAL_SERVER_ERROR;
+            if (sockcode == SOCKET_TIMEOUT) {
+                return HTTP_REQUEST_TIMEOUT;
+            } else {
+                return HTTP_INTERNAL_SERVER_ERROR;
+            }
         }
 
         // Temporarily add null terminator
@@ -325,7 +333,11 @@ httpcode_t http_receive_response(
         if (sockcode != SOCKET_SUCCESS) {
             *out_sockcode = sockcode;
             free_response(out_response);
-            return HTTP_INTERNAL_SERVER_ERROR;
+            if (sockcode == SOCKET_TIMEOUT) {
+                return HTTP_GATEWAY_TIMEOUT;
+            } else {
+                return HTTP_INTERNAL_SERVER_ERROR;
+            }
         }
 
         // Temporarily add null terminator
@@ -403,7 +415,11 @@ httpcode_t http_receive_response_content(
     if (sockcode <= 0) {
         // Socket error occurred
         *out_sockcode = sockcode;
-        return HTTP_INTERNAL_SERVER_ERROR;
+        if (sockcode == SOCKET_TIMEOUT) {
+            return HTTP_GATEWAY_TIMEOUT;
+        } else {
+            return HTTP_INTERNAL_SERVER_ERROR;
+        }
     } else if (sockcode != SOCKET_SUCCESS) {
         // HTTP error occurred
         *out_sockcode = SOCKET_SUCCESS;

@@ -4,6 +4,10 @@
 #include "net/http.h"
 #include "utils.h"
 
+// Max time to wait while receiving requests from client
+#define PROXY_CLIENT_RECV_TIMEOUT_SEC -1 // wait forever
+// Max time to wait while receiving responses from server
+#define PROXY_SERVER_RECV_TIMEOUT_SEC 5
 bool VERBOSE = true;
 
 httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
@@ -89,10 +93,14 @@ void proxy_thread_main(socket_t *client_sock) {
 
     init_request(&request);
     init_response(&response);
-    init_sockreader(&client_reader, client_sock);
+    init_sockreader(&client_reader, client_sock, PROXY_CLIENT_RECV_TIMEOUT_SEC);
 
     // Wait for request from client
-    httpcode = http_receive_request(&client_reader, &sockcode, &request);
+    httpcode = http_receive_request(
+        &client_reader,
+        &sockcode,
+        &request
+    );
     if (httpcode != HTTP_OK) {
         evlog("Error receiving request from client: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
@@ -112,7 +120,7 @@ void proxy_thread_main(socket_t *client_sock) {
         proxy_send_err(client_sock, httpcode);
         goto cleanup;
     }
-    init_sockreader(&server_reader, &server_sock);
+    init_sockreader(&server_reader, &server_sock, PROXY_SERVER_RECV_TIMEOUT_SEC);
 
     // Forward request to server
     sockcode = http_send_request(&request, &server_sock);

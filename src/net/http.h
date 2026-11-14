@@ -10,14 +10,15 @@
 #define PORT_MAX   65535
 
 typedef enum {
-    HTTP_OK = 200,
-    HTTP_BAD_REQUEST = 400,
-    HTTP_FORBIDDEN = 403,
-    HTTP_NOT_FOUND = 404,
-    HTTP_METHOD_NOT_ALLOWED = 405,
-    HTTP_INTERNAL_SERVER_ERROR = 500,
-    HTTP_BAD_GATEWAY = 502,
-    HTTP_GATEWAY_TIMEOUT = 504,
+    HTTP_OK                         = 200,
+    HTTP_BAD_REQUEST                = 400,
+    HTTP_FORBIDDEN                  = 403,
+    HTTP_NOT_FOUND                  = 404,
+    HTTP_METHOD_NOT_ALLOWED         = 405,
+    HTTP_REQUEST_TIMEOUT            = 408,
+    HTTP_INTERNAL_SERVER_ERROR      = 500,
+    HTTP_BAD_GATEWAY                = 502,
+    HTTP_GATEWAY_TIMEOUT            = 504,
     HTTP_HTTP_VERSION_NOT_SUPPORTED = 505
 } httpcode_t;
 
@@ -147,6 +148,8 @@ httpcode_t http_parse_url(url_t *url, const request_t *request);
 /**
  * Receives an HTTP request from a socket reader and outputs a parsed request.
  * 
+ * On timeout, outputs SOCKET_TIMEOUT and returns HTTP_REQUEST_TIMEOUT
+ * 
  * @param reader Socket reader (must be initialized already)
  * @param out_sockcode Output parameter for the socket result code
  * @param out_request Output parameter for the parsed HTTP request
@@ -179,10 +182,12 @@ typedef httpcode_t (*resp_content_callback_t)(
 /**
  * Receives an HTTP response from a socket reader and outputs a parsed response.
  * 
+ * On timeout, outputs SOCKET_TIMEOUT and returns HTTP_GATEWAY_TIMEOUT
+ * 
  * @param reader Socket reader (must be initialized already)
  * @param out_sockcode Output parameter for the socket result code
  * @param out_response Output parameter for the parsed HTTP response
- * @return An HTTP status code representing the result of the parsing
+ * @return An HTTP status code representing the result of the receive
  */
 httpcode_t http_receive_response(
     sockreader_t *reader,
@@ -193,6 +198,8 @@ httpcode_t http_receive_response(
 /**
  * Receives HTTP response content from a socket reader. The content will be received in chunks and
  * processed by calling `content_callback`. Does nothing if the response has no content.
+ * 
+ * On timeout, outputs SOCKET_TIMEOUT and returns HTTP_GATEWAY_TIMEOUT
  * 
  * @param reader Socket reader (must be initialized already)
  * @param out_sockcode Output parameter for the socket result code

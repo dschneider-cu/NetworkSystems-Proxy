@@ -102,7 +102,12 @@ void close_socket(const socket_t *sock) {
     vlog("Socket %d closed", sock->fd);
 }
 
-int socket_recv_timeout(const socket_t *sock, void *buf, int len, int timeout_sec) {
+int socket_recv(const socket_t *sock, void *buf, int len, int timeout_sec) {
+    if (timeout_sec <= 0) {
+        // Wait forever
+        return socket_recv_wait(sock, buf, len);
+    }
+
     // set up the file descriptor set
     fd_set fds;
     FD_ZERO(&fds);
@@ -119,10 +124,10 @@ int socket_recv_timeout(const socket_t *sock, void *buf, int len, int timeout_se
     if (n == -1) { return SOCKET_ERR; }
 
     // data must be here, so do a normal recv()
-    return socket_recv(sock, buf, len);
+    return socket_recv_wait(sock, buf, len);
 }
 
-int socket_recv(const socket_t *sock, void *buf, int len) {
+int socket_recv_wait(const socket_t *sock, void *buf, int len) {
     int result = recv(sock->fd, buf, len, 0);
     if (result == 0) { return SOCKET_CLOSED; }
     else if (result < 0) { return SOCKET_ERR; }
@@ -167,8 +172,9 @@ void socket_recv_flush(const socket_t *sock) {
     while ((n = recv(sock->fd, buffer, sizeof(buffer), MSG_DONTWAIT)) > 0) {}
 }
 
-void init_sockreader(sockreader_t *reader, const socket_t *sock) {
+void init_sockreader(sockreader_t *reader, const socket_t *sock, int timeout_sec) {
     reader->sock = sock;
+    reader->timeout_sec = timeout_sec;
     reader->len = 0;
     reader->data_len = 0;
     reader->line[0] = '\0';
@@ -191,7 +197,7 @@ int sockreader_readbytes(
         if (offset >= reader->data_len) {
             int recv_len = min(bytes_left, SOCKET_RECV_LINE_MAX_LEN);
 
-            code = socket_recv(reader->sock, reader->line, recv_len);
+            code = socket_recv(reader->sock, reader->line, recv_len, reader->timeout_sec);
             if (code <= 0) { break; }
 
             reader->data_len = code;
@@ -248,12 +254,13 @@ int sockreader_readline(sockreader_t *reader) {
         int received = socket_recv(
             reader->sock,
             reader->line + reader->data_len,
-            SOCKET_RECV_LINE_MAX_LEN - reader->data_len
+            SOCKET_RECV_LINE_MAX_LEN - reader->data_len,
+            reader->timeout_sec
         );
+        if (received <= 0) { return received; }
+
         int old_datalen = reader->data_len;
         reader->data_len += received;
-
-        if (received <= 0) { return received; }
 
         // Search for a newline in the received data
         nl_idx = strnfind(reader->line + old_datalen, '\n', received);
