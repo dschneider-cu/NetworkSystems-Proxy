@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "net/socket.h"
 #include "net/http.h"
+#include "net/blocklist.h"
 #include "utils.h"
 
 // Max time to wait while receiving requests from client
@@ -9,6 +10,10 @@
 // Max time to wait while receiving responses from server
 #define PROXY_SERVER_RECV_TIMEOUT_SEC 5
 bool VERBOSE = true;
+
+#define BLOCKLIST_FILE "blocklist"
+vec_t blocklist; // read-only
+
 
 httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
     socket_t *client_sock = (socket_t *)ctx;
@@ -37,34 +42,35 @@ void proxy_send_err(const socket_t *sock, httpcode_t code) {
     free_response(&resp);
 }
 
-/**
- * Connects to the host in the given request and outputs a client socket to communicate with the
- * server */
-httpcode_t proxy_connect_to_server(request_t *request, socket_t *out_server_sock) {
+httpcode_t proxy_resolve_server(request_t *request, url_t *out_url, addr_t *out_server_addr) {
     // Parse URL in request & extract hostname
-    url_t url;
-    httpcode_t httpcode = http_parse_url(&url, request);
+    httpcode_t httpcode = http_parse_url(out_url, &request);
     if (httpcode != HTTP_OK) {
         elog("Failed to parse URL from request: %s", request->url);
         return httpcode;
     }
-    vlog("Server hostname: %.*s", url.host_len, url.host);
+    vlog("Server hostname: %.*s", out_url->host_len, out_url->host);
 
     // todo: Update Host header & path in request
 
     // Resolve hostname into server IP address
-    char *hostname = strnclone(url.host, url.host_len);
-    addr_t server_addr;
-    if (!resolve_hostname(hostname, url.port, &server_addr)) {
+    char *hostname = strnclone(out_url->host, out_url->host_len);
+    if (!resolve_hostname(hostname, out_url->port, out_server_addr)) {
         elog("Failed to resolve hostname: %s", hostname);
         free(hostname);
         return HTTP_BAD_GATEWAY;
     }
-    free(hostname);
-    vlog("Resolved server IP: %s:%d", get_ip_str(&server_addr), get_porth(&server_addr));
+    vlog("Resolved server IP: %s:%d", get_ip_str(out_server_addr), get_porth(out_server_addr));
 
+    free(hostname);
+    return HTTP_OK;
+}
+
+/**
+ * Connects to the the given address and outputs a client socket to communicate with the server */
+httpcode_t proxy_connect_to_server(const addr_t *server_addr, socket_t *out_server_sock) {
     // Create a socket for the server
-    if (!create_socket(out_server_sock, &server_addr, SOCKET_CLIENT)) {
+    if (!create_socket(out_server_sock, server_addr, SOCKET_CLIENT)) {
         elog("Failed to create socket for server");
         return HTTP_BAD_GATEWAY;
     }
@@ -78,7 +84,7 @@ httpcode_t proxy_connect_to_server(request_t *request, socket_t *out_server_sock
     return HTTP_OK;
 }
 
-void proxy_thread_main(socket_t *client_sock) {
+void proxy_handle_client(socket_t *client_sock) {
     socket_t server_sock;
     sockreader_t client_reader;
     sockreader_t server_reader;
@@ -109,12 +115,28 @@ void proxy_thread_main(socket_t *client_sock) {
     vlog("Received request from client:");
     if (VERBOSE) print_request(&request);
 
-    // todo: Check blocklist
+    url_t url;
+    addr_t server_addr;
+    httpcode = proxy_resolve_server(&request, &url, &server_addr);
+    if (httpcode != HTTP_OK) {
+        proxy_send_err(client_sock, httpcode);
+        goto cleanup;
+    }
+    
+    // Check blocklist
+    char *hostname = strnclone(url.host, url.host_len);
+    if (blocklist_contains(&blocklist, hostname) || blocklist_contains(&blocklist, get_ip_str(&server_addr))) {
+        // Host is blocked!
+        proxy_send_err(client_sock, HTTP_FORBIDDEN);
+        free(hostname);
+        goto cleanup;
+    }
+    free(hostname);
 
     // todo: Check cache
 
     // Connect to server
-    httpcode = proxy_connect_to_server(&request, &server_sock);
+    httpcode = proxy_connect_to_server(&server_addr, &server_sock);
     if (httpcode != HTTP_OK) {
         proxy_send_err(client_sock, httpcode);
         goto cleanup;
@@ -202,6 +224,9 @@ int main(int argc, char **argv) {
     if (!make_addr(&proxy_addr, proxy_ip, (uint16_t)proxy_port)) { return 1; }
     if (!create_socket(&proxy_sock, &proxy_addr, SOCKET_SERVER)) { return 1; }
 
+    // Read blocklist
+    blocklist = read_blocklist(BLOCKLIST_FILE);
+
     while (true) {
         // Accept client socket
         if (!socket_accept(&proxy_sock, &client_sock)) {
@@ -214,6 +239,6 @@ int main(int argc, char **argv) {
         *client_sock_copy = client_sock;
 
         // todo: Launch thread
-        proxy_thread_main(client_sock_copy);
+        proxy_handle_client(client_sock_copy);
     }
 }
