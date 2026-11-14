@@ -28,6 +28,9 @@ bool cache_put(
     int ttl
 );
 
+/** Initializes a cache_entry_t struct */
+void init_cache_entry(cache_entry_t *entry);
+
 /**
  * Append more data to the end of an existing cache entry.
  * 

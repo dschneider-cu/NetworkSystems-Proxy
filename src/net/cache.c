@@ -10,6 +10,12 @@
 static const char *CACHE_DIR = "cache";
 
 
+void init_cache_entry(cache_entry_t *entry) {
+    entry->filepath = NULL;
+    entry->file = NULL;
+    entry->file_mode = NULL;
+}
+
 bool cache_put(
     cache_entry_t *out_entry,
     const char *key,

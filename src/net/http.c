@@ -493,84 +493,92 @@ int http_response_text_size(const response_t *response) {
 // Callback for writing header text to a buffer
 bool _write_header(int i, void *data, void *ctx) {
     header_t *h = (header_t *)data;
-    char **buffer = (char **)ctx;
-    *buffer += sprintf(*buffer, "%s: %s\r\n", h->name, h->value);
+    char **p = (char **)ctx;
+    *p += sprintf(*p, "%s: %s\r\n", h->name, h->value);
     return false;
 }
 
-void http_write_request_text(const request_t *request, char *buffer) {
-    if (!request->complete) return;
+char *http_make_request_text(const request_t *request, int *out_len) {
+    if (!request->complete) return NULL;
+
+    // Allocate space for text
+    int size = http_request_text_size(request);
+    char *buffer = (char *)malloc(size + 1);
+    if (buffer == NULL) { return NULL; }
+
+    char *p = buffer;
 
     // Start line
-    buffer += sprintf(
-        buffer, "%s %s %s\r\n", 
+    p += sprintf(
+        p, "%s %s %s\r\n", 
         request->method, request->url, request->version
     );
 
     // Headers
-    vec_foreach(&request->headers, _write_header, &buffer);
+    vec_foreach(&request->headers, _write_header, &p);
 
     // Ending blank line & null terminator
-    *buffer++ = '\r';
-    *buffer++ = '\n';
-    *buffer++ = '\0';
+    *p++ = '\r';
+    *p++ = '\n';
+    *p = '\0';
+
+    if (out_len != NULL) *out_len = p - buffer;
+    return buffer;
 }
 
-void http_write_response_text(const response_t *response, char *buffer) {
-    if (!response->complete) return;
+char *http_make_response_text(const response_t *response, int *out_len) {
+    if (!response->complete) return NULL;
+
+    // Allocate space for text
+    int size = http_response_text_size(response);
+    char *buffer = (char *)malloc(size + 1);
+    if (buffer == NULL) { return NULL; }
+
+    char *p = buffer;
 
     // Status line
-    buffer += sprintf(
-        buffer, "%s %d %s\r\n", 
+    p += sprintf(
+        p, "%s %d %s\r\n", 
         response->version, response->code, response->status_text
     );
 
     // Headers
-    vec_foreach(&response->headers, _write_header, &buffer);
+    vec_foreach(&response->headers, _write_header, &p);
 
     // Content
     if (response->content != NULL && response->content_len > 0) {
-        *buffer++ = '\r';
-        *buffer++ = '\n';
-        memcpy(buffer, response->content, response->content_len);
+        *p++ = '\r';
+        *p++ = '\n';
+        memcpy(p, response->content, response->content_len);
     }
 
     // Ending blank line & null terminator
-    *buffer++ = '\r';
-    *buffer++ = '\n';
-    *buffer++ = '\0';
+    *p++ = '\r';
+    *p++ = '\n';
+    *p = '\0';
+
+    if (out_len != NULL) *out_len = p - buffer;
+    return buffer;
 }
 
 int http_send_request(const request_t *request, const socket_t *sock) {
-    // Allocate space for text
-    int size = http_request_text_size(request);
-    char *buffer = (char *)malloc(size + 1);
-    if (buffer == NULL) { return SOCKET_ERR; }
+    int len;
+    char *text = http_make_request_text(request, &len);
 
-    // Write request text to buffer
-    http_write_request_text(request, buffer);
-
-    // Send buffer
     int sent;
-    int sockcode = socket_send_all(sock, buffer, size, &sent);
-    free(buffer);
+    int sockcode = socket_send_all(sock, text, len, &sent);
+    free(text);
 
     return sockcode;
 }
 
 int http_send_response(const response_t *response, const socket_t *sock) {
-    // Allocate space for text
-    int size = http_response_text_size(response);
-    char *buffer = (char *)malloc(size + 1);
-    if (buffer == NULL) { return SOCKET_ERR; }
+    int len;
+    char *text = http_make_response_text(response, &len);
 
-    // Write request text to buffer
-    http_write_response_text(response, buffer);
-
-    // Send buffer
     int sent;
-    int sockcode = socket_send_all(sock, buffer, size, &sent);
-    free(buffer);
+    int sockcode = socket_send_all(sock, text, len, &sent);
+    free(text);
 
     return sockcode;
 }

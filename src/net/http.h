@@ -231,24 +231,24 @@ int http_request_text_size(const request_t *request);
 int http_response_text_size(const response_t *response);
 
 /**
- * Converts an HTTP request to text and places it in the buffer. Does nothing if the request is
- * incomplete.
+ * Converts an HTTP request to text and returns a heap-allocated buffer. Does nothing if the
+ * request is incomplete.
  * 
  * @param request HTTP request
- * @param buffer Buffer for the text + null terminator. Must be big enough to fit the text; use
- *      `http_request_text_size`.
+ * @param out_len Output param for the length of the text in bytes
+ * @return A heap-allocated buffer for the text + null terminator.
  */
-void http_write_request_text(const request_t *request, char *buffer);
+char *http_make_request_text(const request_t *request, int *out_len);
 
 /**
- * Converts an HTTP response to text and places it in the buffer. Does nothing if the response is
- * incomplete.
+ * Converts an HTTP response to text and returns a heap-allocated buffer. Does nothing if the
+ * response is incomplete.
  * 
  * @param response HTTP response
- * @param buffer Buffer for the text + null terminator. Must be big enough to fit the text; use
- *      `http_response_text_size`.
+ * @param out_len Output param for the length of the text in bytes
+ * @return A heap-allocated buffer for the text + null terminator.
  */
-void http_write_response_text(const response_t *response, char *buffer);
+char *http_make_response_text(const response_t *response, int *out_len);
 
 /**
  * Send an HTTP request on the given socket.

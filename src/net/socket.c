@@ -152,7 +152,7 @@ int socket_send_all(const socket_t *sock, const void *buf, int len, int *out_sen
     while (left > 0) {
         sent = socket_send(sock, buf, left);
         if (sent <= 0) {
-            *out_sent = total;
+            if (out_sent != NULL) *out_sent = total;
             return sent;
         }
 
@@ -160,7 +160,7 @@ int socket_send_all(const socket_t *sock, const void *buf, int len, int *out_sen
         left -= sent;
     }
 
-    *out_sent = total;
+    if (out_sent != NULL) *out_sent = total;
     return SOCKET_SUCCESS;
 }
 

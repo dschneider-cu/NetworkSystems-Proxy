@@ -3,6 +3,7 @@
 #include "net/socket.h"
 #include "net/http.h"
 #include "net/blocklist.h"
+#include "net/cache.h"
 #include "utils.h"
 
 // Max time to wait while receiving requests from client
@@ -15,8 +16,15 @@ bool VERBOSE = true;
 vec_t blocklist; // read-only
 
 
+typedef struct {
+    socket_t *client_sock;
+    cache_entry_t *cache_entry;
+} proxy_content_callback_ctx_t;
+
 httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
-    socket_t *client_sock = (socket_t *)ctx;
+    proxy_content_callback_ctx_t *pctx = (proxy_content_callback_ctx_t *)ctx;
+    socket_t *client_sock = pctx->client_sock;
+    cache_entry_t *cache_entry = pctx->cache_entry;
 
     // Forward content chunk to client
     vlog("Chunk [%d bytes] \"%.*s\"\n", chunk_len, chunk_len, chunk);
@@ -25,6 +33,11 @@ httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, vo
     vlog("Sent %d bytes to client", bytes_sent);
     if (sockcode != SOCKET_SUCCESS) {
         return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    // Append content to cache entry
+    if (!cache_append(cache_entry, chunk, chunk_len)) {
+        elog("Failed to append content chunk to cache");
     }
 
     // todo: (extra credit) parse <a> and prefetch
@@ -40,6 +53,26 @@ void proxy_send_err(const socket_t *sock, httpcode_t code) {
         elog("Error sending response to client: %s", sockcode_to_str(sockcode));
     }
     free_response(&resp);
+}
+
+void proxy_put_cache(
+    cache_entry_t *out_entry, 
+    const url_t *url,
+    const char *response_text,
+    int response_text_len,
+    int ttl
+) {
+    // Make cache key
+    // todo: remove query from path
+    char *key = strnclone(url->path, url->path_len);
+
+    if (cache_put(out_entry, key, response_text, response_text_len, ttl)) {
+        vlog("Cache entry created: %s %s", key, out_entry->filepath);
+    } else {
+        elog("Failed to put response in cache");
+        cache_close_entry(out_entry);
+    }
+    free(key);
 }
 
 httpcode_t proxy_resolve_server(request_t *request, url_t *out_url, addr_t *out_server_addr) {
@@ -84,7 +117,9 @@ httpcode_t proxy_connect_to_server(const addr_t *server_addr, socket_t *out_serv
     return HTTP_OK;
 }
 
-void proxy_handle_client(socket_t *client_sock) {
+void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
+    /* -- Initialization -- */
+
     socket_t server_sock;
     sockreader_t client_reader;
     sockreader_t server_reader;
@@ -92,6 +127,10 @@ void proxy_handle_client(socket_t *client_sock) {
     response_t response;
     httpcode_t httpcode;
     int sockcode;
+    char *hostname = NULL;
+    char *request_text = NULL;
+    char *response_text = NULL;
+    cache_entry_t cache_entry;
 
     // todo: connection keep-open?
     // todo: transfer chunked?
@@ -99,6 +138,9 @@ void proxy_handle_client(socket_t *client_sock) {
     init_request(&request);
     init_response(&response);
     init_sockreader(&client_reader, client_sock, PROXY_CLIENT_RECV_TIMEOUT_SEC);
+    init_cache_entry(&cache_entry);
+
+    /* -- Receive request -- */
 
     // Wait for request from client
     httpcode = http_receive_request(
@@ -124,17 +166,17 @@ void proxy_handle_client(socket_t *client_sock) {
     }
     
     // Check blocklist
-    char *hostname = strnclone(url.host, url.host_len);
+    hostname = strnclone(url.host, url.host_len);
     if (blocklist_contains(&blocklist, hostname) || blocklist_contains(&blocklist, get_ip_str(&server_addr))) {
         // Host is blocked!
         vlog("Host is blocked: %s %s", hostname, get_ip_str(&server_addr));
         proxy_send_err(client_sock, HTTP_FORBIDDEN);
-        free(hostname);
         goto cleanup;
     }
-    free(hostname);
 
     // todo: Check cache
+
+    /* -- Forward request to server -- */
 
     // Connect to server
     httpcode = proxy_connect_to_server(&server_addr, &server_sock);
@@ -144,8 +186,12 @@ void proxy_handle_client(socket_t *client_sock) {
     }
     init_sockreader(&server_reader, &server_sock, PROXY_SERVER_RECV_TIMEOUT_SEC);
 
+    // Make request text
+    int request_text_len;
+    request_text = http_make_request_text(&request, &request_text_len);
+
     // Forward request to server
-    sockcode = http_send_request(&request, &server_sock);
+    sockcode = socket_send_all(&server_sock, request_text, request_text_len, NULL);
     if (sockcode != SOCKET_SUCCESS) {
         elog("Failed to send request to server: %s", sockcode_to_str(sockcode));
         httpcode = sockcode == SOCKET_TIMEOUT ? HTTP_GATEWAY_TIMEOUT : HTTP_BAD_GATEWAY;
@@ -154,7 +200,7 @@ void proxy_handle_client(socket_t *client_sock) {
     }
     vlog("Forwarded request to server");
 
-    free_request(&request);
+    /* -- Receive response from server & forward to client -- */
 
     // Wait for response from server
     httpcode = http_receive_response(
@@ -171,21 +217,34 @@ void proxy_handle_client(socket_t *client_sock) {
     vlog("Received response from server:");
     if (VERBOSE) print_response(&response);
 
+    // Make response text
+    int response_text_len;
+    response_text = http_make_response_text(&response, &response_text_len);
+
     // Forward response to client
-    sockcode = http_send_response(&response, client_sock);
+    sockcode = socket_send_all(client_sock, response_text, response_text_len, NULL);
     if (sockcode != SOCKET_SUCCESS) {
         elog("Failed to send response to client: %s", sockcode_to_str(sockcode));
         goto cleanup;
     }
     vlog("Forwarded response to client");
 
+    // Put response into cache
+    proxy_put_cache(&cache_entry, &url, response_text, response_text_len, cache_ttl);
+    
+    proxy_content_callback_ctx_t ctx = {
+        client_sock,
+        &cache_entry
+    };
+    
     // Wait for response content from server
     httpcode = http_receive_response_content(
         &server_reader,
         &sockcode,
         &response,
-        content_callback, // Forward response content to client
-        client_sock
+        // Forward response content to client & append response content to cache entry
+        content_callback,
+        &ctx
     );
     if (httpcode != HTTP_OK) {
         elog("Error receiving response content from server: %s %s",
@@ -195,12 +254,16 @@ void proxy_handle_client(socket_t *client_sock) {
     }
     vlog("Forwarded response content to client");
 
-    // Clean up resources
+    /* -- Clean up resources -- */
     cleanup:
         free_request(&request);
         free_response(&response);
+        cache_close_entry(&cache_entry);
         close_socket(client_sock);
-        free(client_sock);
+        if (hostname != NULL) free(hostname);
+        if (request_text != NULL) free(request_text);
+        if (response_text != NULL) free(response_text);
+        if (client_sock != NULL) free(client_sock);
 }
 
 int main(int argc, char **argv) {
@@ -240,6 +303,6 @@ int main(int argc, char **argv) {
         *client_sock_copy = client_sock;
 
         // todo: Launch thread
-        proxy_handle_client(client_sock_copy);
+        proxy_handle_client(client_sock_copy, 0); // todo: ttl
     }
 }
