@@ -81,7 +81,7 @@ bool read_file_content(FILE *file, uint8_t *buffer, long file_size) {
         pelog("Error reading file data");
         return false;
     }
-    if (bytes_read != file_size) {
+    if ((long)bytes_read != file_size) {
         elog("Didn't read expected number of bytes from file: %ld expected, %ld actual", file_size, bytes_read);
         return false;
     }
@@ -106,7 +106,7 @@ uint8_t *read_file(const char *filepath, long *out_file_size) {
     }
 
     // Allocate memory for the file content
-    uint8_t* buffer = (uint8_t *)malloc(file_size);
+    uint8_t* buffer = (uint8_t *)malloc(file_size + 1);
     if (buffer == NULL) {
         elog("Failed to allocate memory: %ld bytes", file_size);
         fclose(file);
@@ -119,6 +119,7 @@ uint8_t *read_file(const char *filepath, long *out_file_size) {
         return NULL;
     }
 
+    buffer[file_size] = '\0';
     *out_file_size = file_size;
     fclose(file);
     return buffer;
@@ -152,7 +153,6 @@ bool delete_file(const char *filepath) {
     if (filepath == NULL) { return false; }
 
     // Delete the file
-    bool success = true;
     if (remove(filepath) != 0) {
         pelog("Failed to delete file");
         return false;

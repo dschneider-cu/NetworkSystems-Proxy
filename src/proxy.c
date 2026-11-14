@@ -44,7 +44,7 @@ void proxy_send_err(const socket_t *sock, httpcode_t code) {
 
 httpcode_t proxy_resolve_server(request_t *request, url_t *out_url, addr_t *out_server_addr) {
     // Parse URL in request & extract hostname
-    httpcode_t httpcode = http_parse_url(out_url, &request);
+    httpcode_t httpcode = http_parse_url(out_url, request);
     if (httpcode != HTTP_OK) {
         elog("Failed to parse URL from request: %s", request->url);
         return httpcode;

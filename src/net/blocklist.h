@@ -14,6 +14,6 @@ vec_t read_blocklist(const char *filepath);
  * @param list Blocklist (gotten from read_blocklist)
  * @param host Host string (domain name or IP string)
  */
-bool blocklist_contains(const vec_t *list, const char host);
+bool blocklist_contains(const vec_t *list, const char *host);
 
 #endif
