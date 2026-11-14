@@ -64,7 +64,9 @@ void proxy_put_cache(
 ) {
     // Make cache key
     // todo: remove query from path
-    char *key = strnclone(url->path, url->path_len);
+    char *host = strnclone(url->host, url->host_len);
+    char *path = strnclone(url->path, url->path_len);
+    char *key = path_join(host, path);
 
     if (cache_put(out_entry, key, response_text, response_text_len, ttl)) {
         vlog("Cache entry created: %s %s", key, out_entry->filepath);
@@ -72,6 +74,8 @@ void proxy_put_cache(
         elog("Failed to put response in cache");
         cache_close_entry(out_entry);
     }
+    free(host);
+    free(path);
     free(key);
 }
 
