@@ -55,28 +55,44 @@ void proxy_send_err(const socket_t *sock, httpcode_t code) {
     free_response(&resp);
 }
 
-void proxy_put_cache(
-    cache_entry_t *out_entry, 
-    const url_t *url,
-    const char *response_text,
-    int response_text_len,
-    int ttl
-) {
-    // Make cache key
-    // todo: remove query from path
+char *proxy_get_cache_key(const url_t *url) {
+    if (strnfind(url->path, '?', url->path_len) != -1) {
+        return NULL;
+    }
+
     char *host = strnclone(url->host, url->host_len);
     char *path = strnclone(url->path, url->path_len);
     char *key = path_join(host, path);
 
-    if (cache_put(out_entry, key, response_text, response_text_len, ttl)) {
-        vlog("Cache entry created: %s %s", key, out_entry->filepath);
+    free(host);
+    free(path);
+    return key;
+}
+
+void proxy_put_cache(
+    cache_entry_t *out_entry,
+    const char *cache_key,
+    const char *response_text,
+    int response_text_len,
+    int ttl
+) {
+    if (cache_key == NULL) {
+        vlog("Path has query parameters; skipping cache");
+        return;
+    }
+
+    if (cache_put(out_entry, cache_key, response_text, response_text_len, ttl)) {
+        vlog("Cache entry created: %s %s", cache_key, out_entry->filepath);
     } else {
         elog("Failed to put response in cache");
         cache_close_entry(out_entry);
     }
-    free(host);
-    free(path);
-    free(key);
+}
+
+bool proxy_cache_check(socket_t *client_sock, cache_entry_t *cache_entry, const char *cache_key) {
+    // todo: Check cache for key
+    // todo: Forward cached response to client
+    return false;
 }
 
 httpcode_t proxy_resolve_server(request_t *request, url_t *out_url, addr_t *out_server_addr) {
@@ -135,6 +151,7 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
     char *request_text = NULL;
     char *response_text = NULL;
     cache_entry_t cache_entry;
+    char *cache_key = NULL;
 
     // todo: connection keep-open?
     // todo: transfer chunked?
@@ -178,7 +195,12 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
         goto cleanup;
     }
 
-    // todo: Check cache
+    // Check cache
+    cache_key = proxy_get_cache_key(&url);
+    if (proxy_cache_check(client_sock, &cache_entry, cache_key)) {
+        // Cache hit! Done.
+        goto cleanup;
+    }
 
     /* -- Forward request to server -- */
 
@@ -234,7 +256,7 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
     vlog("Forwarded response to client");
 
     // Put response into cache
-    proxy_put_cache(&cache_entry, &url, response_text, response_text_len, cache_ttl);
+    proxy_put_cache(&cache_entry, cache_key, response_text, response_text_len, cache_ttl);
     
     proxy_content_callback_ctx_t ctx = {
         client_sock,
@@ -253,7 +275,6 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
     if (httpcode != HTTP_OK) {
         elog("Error receiving response content from server: %s %s",
             httpcode_to_str(httpcode), sockcode_to_str(sockcode));
-        // proxy_send_err(client_sock, httpcode);
         goto cleanup;
     }
     vlog("Forwarded response content to client");
@@ -268,6 +289,7 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
         if (request_text != NULL) free(request_text);
         if (response_text != NULL) free(response_text);
         if (client_sock != NULL) free(client_sock);
+        if (cache_key != NULL) free(cache_key);
 }
 
 int main(int argc, char **argv) {
