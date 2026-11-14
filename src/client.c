@@ -12,12 +12,12 @@ bool VERBOSE = true;
 
 int client_send_input(char *input, const socket_t *sock) {
     // Remove the trailing newline
-    size_t len = strlen(input);
+    int len = strlen(input);
     if (len > 0 && input[len - 1] == '\n') {
         input[--len] = '\0';
     }
 
-    for (size_t i = 0; i < len-1; i++) {
+    for (int i = 0; i < len-1; i++) {
         if (input[i] == '\\' && input[i + 1] == 'n') {
             input[i] = '\r';
             input[i+1] = '\n';
@@ -69,7 +69,7 @@ void *client_receive(void *arg) {
 
 int main(void) {
     socket_t sock;
-    char input[4096];
+    char input[512];
     pthread_t thread_id;
 
     addr_t addr;
