@@ -676,8 +676,14 @@ const char *httpcode_to_str(httpcode_t code) {
             return "Not Found";
         case HTTP_METHOD_NOT_ALLOWED:
             return "Method Not Allowed";
+        case HTTP_REQUEST_TIMEOUT:
+            return "Request Timeout";
         case HTTP_INTERNAL_SERVER_ERROR:
             return "Internal Server Error";
+        case HTTP_BAD_GATEWAY:
+            return "Bad Gateway";
+        case HTTP_GATEWAY_TIMEOUT:
+            return "Gateway Timeout";
         case HTTP_HTTP_VERSION_NOT_SUPPORTED:
             return "HTTP Version Not Supported";
         default:
