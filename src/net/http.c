@@ -26,7 +26,7 @@ httpcode_t http_parse_request_line(request_t *request, char *line, int line_len)
         header_t *h = (header_t *)malloc(sizeof(header_t));
         code = http_parse_header(h, line, line_len);
         if (code == HTTP_OK) {
-            linkedlist_push(&request->headers, h);
+            vec_push(&request->headers, h);
         }
     } else {
         return HTTP_BAD_REQUEST;
@@ -58,7 +58,7 @@ httpcode_t http_parse_response_line(response_t *response, char *line, int line_l
         header_t *h = (header_t *)malloc(sizeof(header_t));
         code = http_parse_header(h, line, line_len);
         if (code == HTTP_OK) {
-            linkedlist_push(&response->headers, h);
+            vec_push(&response->headers, h);
         }
     } else {
         return HTTP_BAD_REQUEST;
@@ -75,7 +75,7 @@ void init_request(request_t *request) {
     request->method = NULL;
     request->url = NULL;
     request->version = NULL;
-    linkedlist_init(&request->headers);
+    vec_init(&request->headers);
 }
 
 void init_response(response_t *response) {
@@ -86,7 +86,7 @@ void init_response(response_t *response) {
     response->status_text = NULL;
     response->content = NULL;
     response->content_len = 0;
-    linkedlist_init(&response->headers);
+    vec_init(&response->headers);
 }
 
 httpcode_t http_parse_start_line(request_t *request, char *line, int line_len) {
@@ -193,7 +193,7 @@ bool _header_match(int i, const void *data, const void *criteria, void *ctx) {
 }
 
 const char *http_get_request_header(const request_t *request, const char *name) {
-    header_t *header = (header_t *)linkedlist_find(&request->headers, _header_match, name, NULL);
+    header_t *header = (header_t *)vec_find(&request->headers, _header_match, name, NULL);
     if (header != NULL) {
         return header->value;
     } else {
@@ -202,7 +202,7 @@ const char *http_get_request_header(const request_t *request, const char *name) 
 }
 
 const char *http_get_response_header(const response_t *response, const char *name) {
-    header_t *header = (header_t *)linkedlist_find(&response->headers, _header_match, name, NULL);
+    header_t *header = (header_t *)vec_find(&response->headers, _header_match, name, NULL);
     if (header != NULL) {
         return header->value;
     } else {
@@ -455,7 +455,7 @@ int http_request_text_size(const request_t *request) {
     size += 4;
 
     // Add headers to sum
-    linkedlist_foreach(&request->headers, _sum_header_size, &size);
+    vec_foreach(&request->headers, _sum_header_size, &size);
 
     // +2 for ending \r\n
     size += 2;
@@ -473,7 +473,7 @@ int http_response_text_size(const response_t *response) {
     size += 4;
 
     // Add headers to sum
-    linkedlist_foreach(&response->headers, _sum_header_size, &size);
+    vec_foreach(&response->headers, _sum_header_size, &size);
 
     // Add content length
     if (response->content != NULL && response->content_len > 0) {
@@ -506,7 +506,7 @@ void http_write_request_text(const request_t *request, char *buffer) {
     );
 
     // Headers
-    linkedlist_foreach(&request->headers, _write_header, &buffer);
+    vec_foreach(&request->headers, _write_header, &buffer);
 
     // Ending blank line & null terminator
     *buffer++ = '\r';
@@ -524,7 +524,7 @@ void http_write_response_text(const response_t *response, char *buffer) {
     );
 
     // Headers
-    linkedlist_foreach(&response->headers, _write_header, &buffer);
+    vec_foreach(&response->headers, _write_header, &buffer);
 
     // Content
     if (response->content != NULL && response->content_len > 0) {
@@ -586,14 +586,14 @@ void http_make_request(
     out_request->version = strclone(version);
 
     // Headers
-    linkedlist_init(&out_request->headers);
+    vec_init(&out_request->headers);
 
     for (int i = 0; i < nheaders; i++) {
         header_t *h = (header_t *)malloc(sizeof(header_t));
         h->name = strclone(headers[i*2]);
         h->value = strclone(headers[i*2+1]);
 
-        linkedlist_push(&out_request->headers, h);
+        vec_push(&out_request->headers, h);
     }
 
     out_request->nlines = nheaders + 1;
@@ -614,14 +614,14 @@ void http_make_response(
     out_response->status_text = strclone(httpcode_to_str(code));
 
     // Headers
-    linkedlist_init(&out_response->headers);
+    vec_init(&out_response->headers);
 
     for (int i = 0; i < nheaders; i++) {
         header_t *h = (header_t *)malloc(sizeof(header_t));
         h->name = strclone(headers[i*2]);
         h->value = strclone(headers[i*2+1]);
 
-        linkedlist_push(&out_response->headers, h);
+        vec_push(&out_response->headers, h);
     }
 
     // Copy content
@@ -643,15 +643,17 @@ void free_header(header_t *header) {
 }
 
 bool _ll_freeheader(int i, void *data, void *ctx) {
-    free_header((header_t *)data);
+    header_t *h = (header_t *)data;
+    free_header(h);
+    free(h);
     return false;
 }
 void free_request(request_t *request) {
     if (request->method != NULL) free(request->method);
     if (request->url != NULL) free(request->url);
     if (request->version != NULL) free(request->version);
-    linkedlist_foreach(&request->headers, _ll_freeheader, NULL);
-    linkedlist_free(&request->headers, true);
+    vec_foreach(&request->headers, _ll_freeheader, NULL);
+    vec_free(&request->headers);
     init_request(request);
 }
 
@@ -659,8 +661,8 @@ void free_response(response_t *response) {
     if (response->content != NULL) free(response->content);
     if (response->version != NULL) free(response->version);
     if (response->status_text != NULL) free(response->status_text);
-    linkedlist_foreach(&response->headers, _ll_freeheader, NULL);
-    linkedlist_free(&response->headers, true);
+    vec_foreach(&response->headers, _ll_freeheader, NULL);
+    vec_free(&response->headers);
     init_response(response);
 }
 
@@ -712,7 +714,7 @@ void print_request(const request_t *request) {
         request->method, request->url, request->version
     );
 
-    linkedlist_foreach(&request->headers, _print_header, NULL);
+    vec_foreach(&request->headers, _print_header, NULL);
 }
 
 void print_response(const response_t *response) {
@@ -730,7 +732,7 @@ void print_response(const response_t *response) {
         response->version, response->code, response->status_text
     );
 
-    linkedlist_foreach(&response->headers, _print_header, NULL);
+    vec_foreach(&response->headers, _print_header, NULL);
     
     if (response->content != NULL) {
         print_hexdump(response->content, response->content_len);

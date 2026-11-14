@@ -190,8 +190,8 @@ typedef struct {
     int size;
 } linkedlist_t;
 
-typedef bool (*llcallback_t)(int i, void *data, void *ctx);
-typedef bool (*llpredicate_t)(int i, const void *data, const void *criteria, void *ctx);
+typedef bool (*callback_t)(int i, void *data, void *ctx);
+typedef bool (*predicate_t)(int i, const void *data, const void *criteria, void *ctx);
 
 /** Initialize a new empty linked list. */
 void linkedlist_init(linkedlist_t *list);
@@ -214,12 +214,60 @@ void *linkedlist_get(const linkedlist_t *list, int i);
  * Iterate a linked list and call f(i, data, ctx) for each element. Stops iteration if the function
  * returns true.
  */
-void linkedlist_foreach(const linkedlist_t *list, llcallback_t f, void *ctx);
+void linkedlist_foreach(const linkedlist_t *list, callback_t f, void *ctx);
 
 /**
  * Iterate a linked list and returns the first element where match_fn(data, critera, ctx) returns
  * true. Returns NULL if none matched the criteria.
  */
-void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria, void *ctx);
+void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria, void *ctx);
+
+
+// Vec (dynamic array)
+
+typedef struct {
+    int size;
+    int capacity;
+    void **array;
+} vec_t;
+
+/** Initialize a new vec */
+void vec_init(vec_t *vec);
+
+/** Expand the capacity of a vec. Does nothing if new capacity is less than current capacity. */
+void vec_expand(vec_t *vec, int new_capacity);
+
+/** Push data to the vec */
+void vec_push(vec_t *vec, void *data);
+
+/** Clears all elements of a vec */
+void vec_clear(vec_t *vec);
+
+/** Free vec memory */
+void vec_free(vec_t *vec);
+
+/** Returns the size of a vec */
+int vec_size(const vec_t *vec);
+
+/** Returns the capacity of a vec */
+int vec_capacity(const vec_t *vec);
+
+/** Get the data in a vec at index i. Returns NULL if i is out of bounds. */
+void *vec_get(const vec_t *vec, int i);
+
+/** Sets the data at index i to value. Does nothing if i is out of bounds. */
+void vec_set(vec_t *vec, int i, void *value);
+
+/**
+ * Iterate a vec and call f(i, data, ctx) for each element. Stops iteration if the function returns
+ * true.
+ */
+void vec_foreach(const vec_t *vec, callback_t f, void *ctx);
+
+/**
+ * Iterate a vec and returns the first element where match_fn(data, critera, ctx) returns true.
+ * Returns NULL if none matched the criteria.
+ */
+void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria, void *ctx);
 
 #endif

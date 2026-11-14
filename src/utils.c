@@ -301,7 +301,7 @@ void *linkedlist_get(const linkedlist_t *list, int i) {
     return node->data;
 }
 
-void linkedlist_foreach(const linkedlist_t *list, llcallback_t f, void *ctx) {
+void linkedlist_foreach(const linkedlist_t *list, callback_t f, void *ctx) {
     if (f == NULL || list->size == 0) { return; }
 
     llnode_t *node = list->head;
@@ -317,7 +317,7 @@ void linkedlist_foreach(const linkedlist_t *list, llcallback_t f, void *ctx) {
     }
 }
 
-void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const void *criteria, void *ctx) {
+void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria, void *ctx) {
     if (match_fn == NULL) { return NULL; }
 
     llnode_t *node = list->head;
@@ -332,5 +332,78 @@ void *linkedlist_find(const linkedlist_t *list, llpredicate_t match_fn, const vo
         i++;
     }
 
+    return NULL;
+}
+
+void vec_init(vec_t *vec) {
+    vec->size = 0;
+    vec->capacity = 0;
+    vec->array = NULL;
+}
+
+void vec_expand(vec_t *vec, int new_capacity) {
+    if (new_capacity <= vec->capacity) { return; }
+
+    void *new_array = realloc(vec->array, new_capacity * sizeof(void *));
+    if (new_array == NULL) {
+        elog("Failed to allocate memory for vec: %ld bytes", new_capacity * sizeof(void *));
+        exit(1); // panic
+    }
+
+    vec->array = new_array;
+    vec->capacity = new_capacity;
+}
+
+void vec_push(vec_t *vec, void *data) {
+    if (vec->size >= vec->capacity) {
+        vec_expand(vec, (vec->capacity == 0) ? 8 : vec->capacity * 2);
+    }
+    
+    vec->array[vec->size++] = data;
+}
+
+void vec_clear(vec_t *vec) {
+    vec->size = 0;
+}
+
+void vec_free(vec_t *vec) {
+    if (vec->array != NULL) free(vec->array);
+    vec->array = NULL;
+    vec->capacity = 0;
+    vec->size = 0;
+}
+
+int vec_size(const vec_t *vec) {
+    return vec->size;
+}
+
+int vec_capacity(const vec_t *vec) {
+    return vec->capacity;
+}
+
+void *vec_get(const vec_t *vec, int i) {
+    if (i < 0 || i >= vec->size) return NULL;
+    return vec->array[i];
+}
+
+void vec_set(vec_t *vec, int i, void *value) {
+    if (i < 0 || i >= vec->size) return;
+    vec->array[i] = value;
+}
+
+void vec_foreach(const vec_t *vec, callback_t f, void *ctx) {
+    for (int i = 0; i < vec->size; i++) {
+        if (f(i, vec->array[i], ctx)) {
+            return;
+        }
+    }
+}
+
+void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria, void *ctx) {
+    for (int i = 0; i < vec->size; i++) {
+        if (match_fn(i, vec->array[i], criteria, ctx)) {
+            return vec->array[i];
+        }
+    }
     return NULL;
 }

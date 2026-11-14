@@ -38,8 +38,8 @@ typedef struct {
     char *method;
     char *url;
     char *version;
-    linkedlist_t headers; // data will be a header_t*
-    bool complete;        // Whether the request is done parsing
+    vec_t headers; // data will be a header_t*
+    bool complete; // Whether the request is done parsing
 } request_t;
 
 typedef struct {
@@ -47,7 +47,7 @@ typedef struct {
     httpcode_t code;
     char *version;
     char *status_text;
-    linkedlist_t headers; // data will be header_t*
+    vec_t headers; // data will be header_t*
     char *content;
     int content_len;
     bool complete;        // Whether the response is done parsing

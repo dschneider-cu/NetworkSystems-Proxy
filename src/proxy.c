@@ -87,7 +87,6 @@ void proxy_thread_main(socket_t *client_sock) {
     httpcode_t httpcode;
     int sockcode;
 
-    // todo: timeout
     // todo: connection keep-open?
     // todo: transfer chunked?
 
