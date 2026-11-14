@@ -7,7 +7,28 @@
 
 #define MD5_DIGEST_LENGTH 16 // 128 bit
 #define MD5_HEX_LENGTH    32 // 2 hex chars per digest byte
+static const char *CACHE_DIR = "cache";
 
+
+void cache_put(cache_entry_t *out_entry, const char *key, const char *data, int len, int ttl) {
+
+}
+
+void cache_append(cache_entry_t *entry, const char *data, int len) {
+
+}
+
+char *cache_get(cache_entry_t *out_entry, const char *key) {
+    return NULL;
+}
+
+void cache_entry_close(cache_entry_t *entry) {
+
+}
+
+bool cache_is_expired(const cache_entry_t *entry) {
+    return false;
+}
 
 char *md5(const char *input) {
     uint8_t digest[MD5_DIGEST_LENGTH];
