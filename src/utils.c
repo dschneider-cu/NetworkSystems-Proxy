@@ -238,16 +238,36 @@ bool inttostr(int n, char *buffer) {
 }
 
 char *strclone(const char *s) {
-    return strnclone(s, strlen(s));
+    return strdup(s);
 }
 
 char *strnclone(const char *s, int len) {
-    char *s2 = (char *)malloc(len + 1);
-    if (s2 == NULL) return NULL;
+    return strndup(s, len);
+}
 
-    memcpy(s2, s, len);
-    s2[len] = '\0';
-    return s2;
+vec_t strsplit(const char *s, const char *delim) {
+    vec_t vec;
+    vec_init(&vec);
+
+    int delim_len = strlen(delim);
+    if (delim_len == 0) return vec;
+
+    const char *start = s;
+    const char *end;
+
+    while ((end = strstr(start, delim)) != NULL) {
+        int len = end - start;
+        char *token = strnclone(start, len);
+        vec_push(&vec, token);
+
+        start = end + delim_len;
+    }
+
+    // Push final token
+    char *token = strclone(start);
+    vec_push(&vec, token);
+
+    return vec;
 }
 
 void linkedlist_init(linkedlist_t *list) {
@@ -270,19 +290,29 @@ void linkedlist_push(linkedlist_t *list, void *data) {
     list->size++;
 }
 
-void linkedlist_free(linkedlist_t *list, bool free_data) {
+void linkedlist_free(linkedlist_t *list) {
     if (list == NULL || list->size == 0) return;
     llnode_t *node = list->head;
     llnode_t *next;
     while (node != NULL) {
         next = node->next;
-        if (free_data) { free(node->data); }
         free(node);
         node = next;
     }
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
+}
+
+void linkedlist_free_each(linkedlist_t *list) {
+    if (list == NULL || list->size == 0) return;
+    llnode_t *node = list->head;
+    llnode_t *next;
+    while (node != NULL) {
+        next = node->next;
+        if (node->data != NULL) free(node->data);
+        node = next;
+    }
 }
 
 int linkedlist_size(const linkedlist_t *list) {
@@ -373,6 +403,12 @@ void vec_free(vec_t *vec) {
     vec->size = 0;
 }
 
+void vec_free_each(vec_t *vec) {
+    for (int i = 0; i < vec->size; i++) {
+        if (vec->array[i] != NULL) free(vec->array[i]);
+    }
+}
+
 int vec_size(const vec_t *vec) {
     return vec->size;
 }
@@ -415,4 +451,15 @@ int vec_indexof(const vec_t *vec, predicate_t match_fn, const void *criteria) {
         }
     }
     return -1;
+}
+
+void print_vec(const vec_t *vec) {
+    printf("[");
+    for (int i = 0; i < vec->size - 1; i++) {
+        printf("\"%s\", ", (const char *)vec->array[i]);
+    }
+    if (vec->size > 0) {
+        printf("\"%s\"", (const char *)vec->array[vec->size - 1]);
+    }
+    printf("]\n");
 }

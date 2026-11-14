@@ -28,36 +28,122 @@ extern bool VERBOSE;
 
 #define HEXDUMP_COL_WIDTH 24
 
+typedef bool (*callback_t)(int i, void *data, void *ctx);
+typedef bool (*predicate_t)(int i, const void *data, const void *criteria);
 
-/** Initialize RNG */
-void init_rand();
 
-/** Get a random double between 0.0 (inclusive) and 1.0 (exclusive) */
-double get_rand();
+// Linked list
 
-/** Min of a and b */
-int min(int a, int b);
+typedef struct _Node llnode_t;
+struct _Node {
+    void *data;
+    llnode_t *next;
+};
 
-/** Max of a and b */
-int max(int a, int b);
+typedef struct {
+    llnode_t *head;
+    llnode_t *tail;
+    int size;
+} linkedlist_t;
 
-/** Clamp val to between min and max */
-int clamp(int val, int min, int max);
+/** Initialize a new empty linked list. */
+void linkedlist_init(linkedlist_t *list);
 
-/** 
- * Shuffle integers between start (inclusive) and end (exclusive). `arr` should be an array with
- * at least `(end-start)*sizeof(int)` allocated. Only positive integers, pretty please.
- */
-void fill_with_shuffled_range(int *arr, int start, int end);
+/** Push data to the linked list */
+void linkedlist_push(linkedlist_t *list, void *data);
+
+/** Free linked list memory */
+void linkedlist_free(linkedlist_t *list);
 
 /**
- * Print bytes of `data` as Hex and ASCII. If a character isn't valid ASCII, prints a dot. Hex will
- * be on the left and ascii on the right.
- * 
- * @param data pointer to the data
- * @param data_len number of bytes to print
+ * Calls `free()` on each element of the linked list. Make sure to call *before*
+ * `linkedlist_free()`.
  */
-void print_hexdump(const void *data, int data_len);
+void linkedlist_free_each(linkedlist_t *list);
+
+/** Returns the size of a linked list */
+int linkedlist_size(const linkedlist_t *list);
+
+/** Get the data in a linked list at index i. Returns NULL if i is out of bounds. O(n) */
+void *linkedlist_get(const linkedlist_t *list, int i);
+
+/**
+ * Iterate a linked list and call f(i, data, ctx) for each element. Stops iteration if the function
+ * returns true.
+ */
+void linkedlist_foreach(const linkedlist_t *list, callback_t f, void *ctx);
+
+/**
+ * Iterate a linked list and returns the first element where match_fn(data, critera) returns
+ * true. Returns NULL if none matched the criteria.
+ */
+void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria);
+
+
+// Vec (dynamic array)
+
+typedef struct {
+    int size;
+    int capacity;
+    void **array;
+} vec_t;
+
+/** Initialize a new vec */
+void vec_init(vec_t *vec);
+
+/** Expand the capacity of a vec. Does nothing if new capacity is less than current capacity. */
+void vec_expand(vec_t *vec, int new_capacity);
+
+/** Push data to the vec */
+void vec_push(vec_t *vec, void *data);
+
+/** Clears all elements of a vec */
+void vec_clear(vec_t *vec);
+
+/** Free vec memory */
+void vec_free(vec_t *vec);
+
+/** Call `free()` on each element of the vec. Make sure to call *before* `vec_free()`. */
+void vec_free_each(vec_t *vec);
+
+/** Returns the size of a vec */
+int vec_size(const vec_t *vec);
+
+/** Returns the capacity of a vec */
+int vec_capacity(const vec_t *vec);
+
+/** Get the data in a vec at index i. Returns NULL if i is out of bounds. */
+void *vec_get(const vec_t *vec, int i);
+
+/** Sets the data at index i to value. Does nothing if i is out of bounds. */
+void vec_set(vec_t *vec, int i, void *value);
+
+/**
+ * Iterate a vec and call f(i, data, ctx) for each element. Stops iteration if the function returns
+ * true.
+ */
+void vec_foreach(const vec_t *vec, callback_t f, void *ctx);
+
+/**
+ * Iterate a vec and returns the first element where match_fn(data, critera) returns true.
+ * Returns NULL if none matched the criteria.
+ */
+void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria);
+
+/**
+ * Iterate a vec and returns the index of the first element where match_fn(data, critera) returns
+ * true. Returns -1 if none matched the criteria.
+ */
+int vec_indexof(const vec_t *vec, predicate_t match_fn, const void *criteria);
+
+/**
+ * Prints a vec as `["a", "b", ...]`. Assumes the data contained in vec are null terminated
+ * `char*`s. Don't use otherwise.
+ */
+void print_vec(const vec_t *vec);
+
+
+// String functions
 
 /**
  * Strips trailing whitespace. Must be null-terminated. Modifies the string.
@@ -174,105 +260,43 @@ char *strclone(const char *s);
 /** Copies N characters of a string into the heap */
 char *strnclone(const char *s, int len);
 
+/**
+ * Splits a string by a delimiter and returns a vec of substrings. Each substring will be a heap-
+ * allocated.
+ */
+vec_t strsplit(const char *s, const char *delim);
 
-typedef bool (*callback_t)(int i, void *data, void *ctx);
-typedef bool (*predicate_t)(int i, const void *data, const void *criteria);
 
-// Linked list
+// Other
 
-typedef struct _Node llnode_t;
-struct _Node {
-    void *data;
-    llnode_t *next;
-};
+/** Initialize RNG */
+void init_rand();
 
-typedef struct {
-    llnode_t *head;
-    llnode_t *tail;
-    int size;
-} linkedlist_t;
+/** Get a random double between 0.0 (inclusive) and 1.0 (exclusive) */
+double get_rand();
 
-/** Initialize a new empty linked list. */
-void linkedlist_init(linkedlist_t *list);
+/** Min of a and b */
+int min(int a, int b);
 
-/** Push data to the linked list */
-void linkedlist_push(linkedlist_t *list, void *data);
+/** Max of a and b */
+int max(int a, int b);
+
+/** Clamp val to between min and max */
+int clamp(int val, int min, int max);
+
+/** 
+ * Shuffle integers between start (inclusive) and end (exclusive). `arr` should be an array with
+ * at least `(end-start)*sizeof(int)` allocated. Only positive integers, pretty please.
+ */
+void fill_with_shuffled_range(int *arr, int start, int end);
 
 /**
- * Free a linked list. If `free_data` is true, calls free() on the data pointer inside each node.
+ * Print bytes of `data` as Hex and ASCII. If a character isn't valid ASCII, prints a dot. Hex will
+ * be on the left and ascii on the right.
+ * 
+ * @param data pointer to the data
+ * @param data_len number of bytes to print
  */
-void linkedlist_free(linkedlist_t *list, bool free_data);
-
-/** Returns the size of a linked list */
-int linkedlist_size(const linkedlist_t *list);
-
-/** Get the data in a linked list at index i. Returns NULL if i is out of bounds. O(n) */
-void *linkedlist_get(const linkedlist_t *list, int i);
-
-/**
- * Iterate a linked list and call f(i, data, ctx) for each element. Stops iteration if the function
- * returns true.
- */
-void linkedlist_foreach(const linkedlist_t *list, callback_t f, void *ctx);
-
-/**
- * Iterate a linked list and returns the first element where match_fn(data, critera) returns
- * true. Returns NULL if none matched the criteria.
- */
-void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria);
-
-
-// Vec (dynamic array)
-
-typedef struct {
-    int size;
-    int capacity;
-    void **array;
-} vec_t;
-
-/** Initialize a new vec */
-void vec_init(vec_t *vec);
-
-/** Expand the capacity of a vec. Does nothing if new capacity is less than current capacity. */
-void vec_expand(vec_t *vec, int new_capacity);
-
-/** Push data to the vec */
-void vec_push(vec_t *vec, void *data);
-
-/** Clears all elements of a vec */
-void vec_clear(vec_t *vec);
-
-/** Free vec memory */
-void vec_free(vec_t *vec);
-
-/** Returns the size of a vec */
-int vec_size(const vec_t *vec);
-
-/** Returns the capacity of a vec */
-int vec_capacity(const vec_t *vec);
-
-/** Get the data in a vec at index i. Returns NULL if i is out of bounds. */
-void *vec_get(const vec_t *vec, int i);
-
-/** Sets the data at index i to value. Does nothing if i is out of bounds. */
-void vec_set(vec_t *vec, int i, void *value);
-
-/**
- * Iterate a vec and call f(i, data, ctx) for each element. Stops iteration if the function returns
- * true.
- */
-void vec_foreach(const vec_t *vec, callback_t f, void *ctx);
-
-/**
- * Iterate a vec and returns the first element where match_fn(data, critera) returns true.
- * Returns NULL if none matched the criteria.
- */
-void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria);
-
-/**
- * Iterate a vec and returns the index of the first element where match_fn(data, critera) returns
- * true. Returns -1 if none matched the criteria.
- */
-int vec_indexof(const vec_t *vec, predicate_t match_fn, const void *criteria);
+void print_hexdump(const void *data, int data_len);
 
 #endif
