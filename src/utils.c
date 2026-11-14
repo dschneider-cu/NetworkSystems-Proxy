@@ -245,6 +245,42 @@ char *strnclone(const char *s, int len) {
     return strndup(s, len);
 }
 
+char *_strconcat_impl(const char *first, ...) {
+    if (first == NULL) return NULL;
+
+    va_list args;
+    int total_len = strlen(first);
+
+    // Calculate total length
+    va_start(args, first);
+    const char *str;
+    while ((str = va_arg(args, const char *)) != NULL) {
+        total_len += strlen(str);
+    }
+    va_end(args);
+
+    // Allocate buffer, +1 for \0
+    char *result = malloc(total_len + 1);
+    if (result == NULL) return NULL;
+
+    // Copy strings
+    char *p = result;
+    int len = strlen(first); // len of current string
+    memcpy(p, first, len);   // copy first
+    p += len;
+
+    va_start(args, first);
+    while ((str = va_arg(args, const char *)) != NULL) {
+        len = strlen(str);
+        memcpy(p, str, len);
+        p += len;
+    }
+    va_end(args);
+
+    *p = '\0';
+    return result;
+}
+
 vec_t strsplit(const char *s, const char *delim) {
     vec_t vec;
     vec_init(&vec);

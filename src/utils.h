@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 /** Smaller of a and b */
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
@@ -259,6 +260,11 @@ char *strclone(const char *s);
 
 /** Copies N characters of a string into the heap */
 char *strnclone(const char *s, int len);
+
+
+/** Concatenates strings, returning a new heap-allocated string. */
+#define strconcat(...) _strconcat_impl(__VA_ARGS__, NULL);
+char *_strconcat_impl(const char *first, ...);
 
 /**
  * Splits a string by a delimiter and returns a vec of substrings. Each substring will be a heap-
