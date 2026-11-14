@@ -57,7 +57,17 @@ uint8_t *read_file(const char *filepath, long *out_file_size);
  * @param content_len Length of the content in bytes
  * @return Whether the file was successfully created
  */
-bool create_file(const char *filepath, const void *content, size_t content_len);
+bool create_file(const char *filepath, const void *content, int content_len);
+
+/**
+ * Write bytes to a file.
+ * 
+ * @param file Pointer to the file, use open_file
+ * @param content File content
+ * @param content_len Length of the content in bytes
+ * @return Whether the file was sucessfully written to
+ */
+bool write_file(FILE *file, const void *content, int content_len);
 
 /**
  * Delete a file at the given path

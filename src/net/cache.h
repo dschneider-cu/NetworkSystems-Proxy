@@ -7,6 +7,7 @@
 typedef struct {
     char *filepath;
     FILE *file;
+    const char *file_mode;
     // todo: expiry
 } cache_entry_t;
 
@@ -15,20 +16,26 @@ typedef struct {
  * 
  * @param out_entry Cache entry struct which will be filled in
  * @param key Identifier for the cache entry
- * @param data Pointer to the data to write into the cache
- * @param len Number of bytes in the data
+ * @param content Pointer to the content to write into the cache
+ * @param content_len Number of bytes in the content
  * @param ttl Time to live, in seconds
  */
-void cache_put(cache_entry_t *out_entry, const char *key, const char *data, int len, int ttl);
+bool cache_put(
+    cache_entry_t *out_entry,
+    const char *key,
+    const char *content,
+    int content_len,
+    int ttl
+);
 
 /**
  * Append more data to the end of an existing cache entry.
  * 
  * @param entry Cache entry (gotten from cache_put or cache_get)
- * @param data Pointer to the data to write into the cache
- * @param len Number of bytes in the data
+ * @param content Pointer to the content to write into the cache
+ * @param content_len Number of bytes in the content
  */
-void cache_append(cache_entry_t *entry, const char *data, int len);
+bool cache_append(cache_entry_t *entry, const char *content, int content_len);
 
 /**
  * Retrieve data from the cache
@@ -41,7 +48,7 @@ void cache_append(cache_entry_t *entry, const char *data, int len);
 char *cache_get(cache_entry_t *out_entry, const char *key);
 
 /** Close a cache entry. Use after put or append. */
-void cache_entry_close(cache_entry_t *entry);
+void cache_close_entry(cache_entry_t *entry);
 
 /** Returns true if the given entry is expired. */
 bool cache_is_expired(const cache_entry_t *entry);

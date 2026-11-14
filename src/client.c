@@ -70,8 +70,24 @@ void *client_receive(void *arg) {
 
 int main(void) {
 
-    char *h = md5("hello world!");
-    printf("%s\n", h);
+    const char *key = "einstein_quote";
+    const char *content1 = "Everything should be made as simple as";
+    const char *content2 = " possible, but not simpler.\n";
+    const char *content3 = "- Albert Einstein";
+
+    cache_entry_t entry;
+    bool b;
+    b = cache_put(&entry, key, content1, strlen(content1), 0);
+    printf("%d %s\n", b, entry.filepath);
+
+    b = cache_append(&entry, content2, strlen(content2));
+    printf("%d\n", b);
+
+    b = cache_append(&entry, content3, strlen(content3));
+    printf("%d\n", b);
+
+    cache_close_entry(&entry);
+
     return 0;
 
     socket_t sock;

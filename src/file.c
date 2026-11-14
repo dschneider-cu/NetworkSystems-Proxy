@@ -125,7 +125,7 @@ uint8_t *read_file(const char *filepath, long *out_file_size) {
     return buffer;
 }
 
-bool create_file(const char *filepath, const void *content, size_t content_len) {
+bool create_file(const char *filepath, const void *content, int content_len) {
     if (filepath == NULL || (content == NULL && content_len > 0)) { return false; }
 
     // Open the file
@@ -135,17 +135,21 @@ bool create_file(const char *filepath, const void *content, size_t content_len) 
         return false;
     }
 
-    // Write content to the file
-    if (content_len > 0) {
-        size_t bytes_written = fwrite(content, 1, content_len, file);
-        if (bytes_written < content_len) {
-            pelog("Failed to write all bytes to file");
-            close_file(file);
-            return false;
-        }
+    bool w = write_file(file, content, content_len);
+    close_file(file);
+    return w;
+}
+
+bool write_file(FILE *file, const void *content, int content_len) {
+    if (file == NULL || (content == NULL && content_len > 0)) { return false; }
+    if (content_len == 0) return true;
+
+    size_t bytes_written = fwrite(content, 1, content_len, file);
+    if ((int)bytes_written < content_len) {
+        pelog("Failed to write all bytes to file");
+        return false;
     }
 
-    close_file(file);
     return true;
 }
 
