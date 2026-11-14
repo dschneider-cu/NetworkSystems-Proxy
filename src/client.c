@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include "net/socket.h"
 #include "net/http.h"
+#include "net/cache.h"
 #include "utils.h"
 
 #define CLIENT_RECV_BUF_SIZE 64
@@ -68,6 +69,11 @@ void *client_receive(void *arg) {
 }
 
 int main(void) {
+
+    char *h = md5("hello world!");
+    printf("%s\n", h);
+    return 0;
+
     socket_t sock;
     char input[512];
     pthread_t thread_id;
