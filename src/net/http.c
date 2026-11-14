@@ -186,14 +186,14 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len) {
     return HTTP_OK;
 }
 
-bool _header_match(int i, const void *data, const void *criteria, void *ctx) {
+bool _header_match(int i, const void *data, const void *criteria) {
     const char *name = (char *)criteria;
     header_t *header = (header_t *)data;
     return streq_icase(header->name, name);
 }
 
 const char *http_get_request_header(const request_t *request, const char *name) {
-    header_t *header = (header_t *)vec_find(&request->headers, _header_match, name, NULL);
+    header_t *header = (header_t *)vec_find(&request->headers, _header_match, name);
     if (header != NULL) {
         return header->value;
     } else {
@@ -202,7 +202,7 @@ const char *http_get_request_header(const request_t *request, const char *name) 
 }
 
 const char *http_get_response_header(const response_t *response, const char *name) {
-    header_t *header = (header_t *)vec_find(&response->headers, _header_match, name, NULL);
+    header_t *header = (header_t *)vec_find(&response->headers, _header_match, name);
     if (header != NULL) {
         return header->value;
     } else {

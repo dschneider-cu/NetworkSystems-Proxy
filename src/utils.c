@@ -317,14 +317,14 @@ void linkedlist_foreach(const linkedlist_t *list, callback_t f, void *ctx) {
     }
 }
 
-void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria, void *ctx) {
+void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria) {
     if (match_fn == NULL) { return NULL; }
 
     llnode_t *node = list->head;
     int i = 0;
     
     while (node != NULL) {
-        if (match_fn(i, node->data, criteria, ctx)) {
+        if (match_fn(i, node->data, criteria)) {
             return node->data;
         }
 
@@ -399,11 +399,20 @@ void vec_foreach(const vec_t *vec, callback_t f, void *ctx) {
     }
 }
 
-void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria, void *ctx) {
+void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria) {
     for (int i = 0; i < vec->size; i++) {
-        if (match_fn(i, vec->array[i], criteria, ctx)) {
+        if (match_fn(i, vec->array[i], criteria)) {
             return vec->array[i];
         }
     }
     return NULL;
+}
+
+int vec_indexof(const vec_t *vec, predicate_t match_fn, const void *criteria) {
+    for (int i = 0; i < vec->size; i++) {
+        if (match_fn(i, vec->array[i], criteria)) {
+            return i;
+        }
+    }
+    return -1;
 }

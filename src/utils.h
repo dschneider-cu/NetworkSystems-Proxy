@@ -175,6 +175,8 @@ char *strclone(const char *s);
 char *strnclone(const char *s, int len);
 
 
+typedef bool (*callback_t)(int i, void *data, void *ctx);
+typedef bool (*predicate_t)(int i, const void *data, const void *criteria);
 
 // Linked list
 
@@ -189,9 +191,6 @@ typedef struct {
     llnode_t *tail;
     int size;
 } linkedlist_t;
-
-typedef bool (*callback_t)(int i, void *data, void *ctx);
-typedef bool (*predicate_t)(int i, const void *data, const void *criteria, void *ctx);
 
 /** Initialize a new empty linked list. */
 void linkedlist_init(linkedlist_t *list);
@@ -217,10 +216,10 @@ void *linkedlist_get(const linkedlist_t *list, int i);
 void linkedlist_foreach(const linkedlist_t *list, callback_t f, void *ctx);
 
 /**
- * Iterate a linked list and returns the first element where match_fn(data, critera, ctx) returns
+ * Iterate a linked list and returns the first element where match_fn(data, critera) returns
  * true. Returns NULL if none matched the criteria.
  */
-void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria, void *ctx);
+void *linkedlist_find(const linkedlist_t *list, predicate_t match_fn, const void *criteria);
 
 
 // Vec (dynamic array)
@@ -265,9 +264,15 @@ void vec_set(vec_t *vec, int i, void *value);
 void vec_foreach(const vec_t *vec, callback_t f, void *ctx);
 
 /**
- * Iterate a vec and returns the first element where match_fn(data, critera, ctx) returns true.
+ * Iterate a vec and returns the first element where match_fn(data, critera) returns true.
  * Returns NULL if none matched the criteria.
  */
-void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria, void *ctx);
+void *vec_find(const vec_t *vec, predicate_t match_fn, const void *criteria);
+
+/**
+ * Iterate a vec and returns the index of the first element where match_fn(data, critera) returns
+ * true. Returns -1 if none matched the criteria.
+ */
+int vec_indexof(const vec_t *vec, predicate_t match_fn, const void *criteria);
 
 #endif
