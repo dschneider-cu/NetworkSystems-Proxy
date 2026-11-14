@@ -7,14 +7,13 @@
 
 
 /**
- * Concatenates the directory with the filename
+ * Concatenates path1 and path2, for example "foo/bar" and "file.txt" becomes "foo/bar/file.txt".
  * 
- * @param dir Directory string. Must have a trailing slash!
- * @param filename File name. Must not have a preceeding slash!
- * @param filename_len Length of the filename
- * @return Pointer to a heap-allocated filepathpath string or NULL if the operation failed
+ * @param path1 Directory string.
+ * @param filename File name.
+ * @return Heap-allocated path string or NULL if the operation failed
  */
-char *get_filepath(const char *dir, const char *filename, int filename_len);
+char *path_join(const char *path1, const char *path2);
 
 /** Open a file at the given path */
 FILE *open_file(const char *filepath, const char *mode);

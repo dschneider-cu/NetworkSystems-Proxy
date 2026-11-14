@@ -5,22 +5,33 @@
 #include "utils.h"
 
 
-char *get_filepath(const char *dir, const char *filename, int filename_len) {
-    // Allocate memory for filename combined with the directory (+1 for the \0)
-    int dir_len = strlen(dir);
-    filename_len = strnlen(filename, filename_len);
-    char *filepath = (char *)malloc(dir_len + filename_len + 1);
-    if (filepath == NULL) {
-        elog("Failed to allocate memory: %u bytes", dir_len + filename_len + 1);
-        return NULL;
-    }
+char *path_join(const char *path1, const char *path2) {
+    if (path1 == NULL || path2 == NULL) return NULL;
 
-    // Concatenate dir with filename
-    memcpy(filepath, dir, dir_len);
-    memcpy(filepath + dir_len, filename, filename_len);
-    filepath[dir_len + filename_len] = '\0';
+    int len1 = strlen(path1);
+    int len2 = strlen(path2);
 
-    return filepath;
+    int has_slash1 = len1 > 0 && path1[len1 - 1] == '/';
+    int has_slash2 = len2 > 0 && path2[0] == '/';
+
+    // Determine whether to add or remove a slash 
+    int add_slash = !has_slash1 && !has_slash2;
+    int remove_slash = has_slash1 && has_slash2;
+
+    char *result = malloc(len1 + len2 + add_slash - remove_slash + 1);
+    if (!result) return NULL;
+
+    // Copy path1
+    memcpy(result, path1, len1);
+    int i = len1;
+
+    if (add_slash) result[i++] = '/';
+
+    // Copy path2
+    memcpy(result + i, path2 + remove_slash, len2 - remove_slash);
+    result[i + len2 - remove_slash] = '\0';
+
+    return result;
 }
 
 FILE *open_file(const char *filepath, const char *mode) {
