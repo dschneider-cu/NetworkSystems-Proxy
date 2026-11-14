@@ -16,6 +16,7 @@ typedef enum {
     HTTP_NOT_FOUND                  = 404,
     HTTP_METHOD_NOT_ALLOWED         = 405,
     HTTP_REQUEST_TIMEOUT            = 408,
+    HTTP_CLIENT_CLOSED_REQUEST      = 499,
     HTTP_INTERNAL_SERVER_ERROR      = 500,
     HTTP_BAD_GATEWAY                = 502,
     HTTP_GATEWAY_TIMEOUT            = 504,

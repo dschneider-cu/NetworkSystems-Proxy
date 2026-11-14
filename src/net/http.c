@@ -291,7 +291,9 @@ httpcode_t http_receive_request(
         if (sockcode != SOCKET_SUCCESS) {
             *out_sockcode = sockcode;
             free_request(out_request);
-            if (sockcode == SOCKET_TIMEOUT) {
+            if (sockcode == SOCKET_CLOSED) {
+                return HTTP_CLIENT_CLOSED_REQUEST;
+            } else if (sockcode == SOCKET_TIMEOUT) {
                 return HTTP_REQUEST_TIMEOUT;
             } else {
                 return HTTP_INTERNAL_SERVER_ERROR;
