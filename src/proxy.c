@@ -28,7 +28,7 @@ httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, vo
     cache_entry_t *cache_entry = pctx->cache_entry;
 
     // Forward content chunk to client
-    vlog("Chunk [%d bytes] \"%.*s\"\n", chunk_len, chunk_len, chunk);
+    vlog("Chunk [%d bytes]", chunk_len);
     int bytes_sent;
     int sockcode = socket_send_all(client_sock, chunk, chunk_len, &bytes_sent);
     vlog("Sent %d bytes to client", bytes_sent);
