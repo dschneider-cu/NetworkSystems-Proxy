@@ -19,10 +19,6 @@ void init_cache_entry(cache_entry_t *entry) {
 }
 
 char *make_cache_key(const url_t *url) {
-    if (strnfind(url->path, '?', url->path_len) != -1) {
-        return NULL;
-    }
-
     char *host = strnclone(url->host, url->host_len);
     char *path = strnclone(url->path, url->path_len);
     char *key = path_join(host, path);
