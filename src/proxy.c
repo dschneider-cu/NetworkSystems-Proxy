@@ -89,7 +89,7 @@ void proxy_put_cache(
     }
 }
 
-bool proxy_cache_check(socket_t *client_sock, cache_entry_t *cache_entry, const char *cache_key) {
+bool proxy_check_cache(socket_t *client_sock, cache_entry_t *cache_entry, const char *cache_key) {
     void *freeptr;
     int content_len;
     char *content = cache_get(cache_entry, cache_key, &content_len, &freeptr);
@@ -110,7 +110,6 @@ bool proxy_cache_check(socket_t *client_sock, cache_entry_t *cache_entry, const 
         vlog("Cache MISS: %s", cache_key);
     }
 
-    free(freeptr);
     cache_close_entry(cache_entry);
     return false;
 }
@@ -217,7 +216,7 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
 
     // Check cache
     cache_key = proxy_get_cache_key(&url);
-    if (proxy_cache_check(client_sock, &cache_entry, cache_key)) {
+    if (proxy_check_cache(client_sock, &cache_entry, cache_key)) {
         // Cache hit! Done.
         goto cleanup;
     }

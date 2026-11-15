@@ -71,9 +71,48 @@ char *cache_get(
     int *out_content_len,
     void **out_freeptr
 ) {
-    if (out_content_len != NULL) *out_content_len = 0;
-    *out_freeptr = NULL;
-    return NULL;
+    char *hash = md5(key);
+    char *filepath = path_join(CACHE_DIR, hash);
+    free(hash);
+    
+    // Open file
+    out_entry->filepath = filepath;
+    out_entry->file_mode = "rb";
+    out_entry->file = open_file(filepath, out_entry->file_mode);
+    if (out_entry->file == NULL) {
+        // Failed to open file
+        cache_close_entry(out_entry);
+        return NULL;
+    }
+    
+    // Read file size
+    long file_size = read_file_size(out_entry->file);
+    if (file_size == -1) {
+        // Failed to read file size
+        cache_close_entry(out_entry);
+        return NULL;
+    }
+    
+    // Allocate memory for the file content
+    uint8_t *file_content = (uint8_t *)malloc(file_size + 1);
+    if (file_content == NULL) {
+        elog("Failed to allocate memory: %ld bytes", file_size + 1);
+        cache_close_entry(out_entry);
+        return NULL;
+    }
+    
+    // Read file content
+    if (!read_file_content(out_entry->file, file_content, file_size)) {
+        // Failed to read file content
+        cache_close_entry(out_entry);
+        return NULL;
+    }
+
+    // todo: TTL
+
+    if (out_content_len != NULL) *out_content_len = file_size;
+    *out_freeptr = (void *)file_content;
+    return (char *)file_content;
 }
 
 void cache_close_entry(cache_entry_t *entry) {
