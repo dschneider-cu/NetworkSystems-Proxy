@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <openssl/evp.h>
+#include <time.h>
 #include "cache.h"
 #include "../utils.h"
 #include "../file.h"
 
 #define MD5_DIGEST_LENGTH 16 // 128 bit
 #define MD5_HEX_LENGTH    32 // 2 hex chars per digest byte
+#define TIME_MAX_DIGITS   19 // number of digits in int64
 static const char *CACHE_DIR = "cache";
 
 
@@ -38,6 +40,15 @@ bool _ensure_entry_mode(cache_entry_t *entry, const char *mode) {
     return true;
 }
 
+time_t _current_time() {
+    time_t now = time(NULL);
+    if (now == (time_t)(-1)) {
+        pelog("Time error");
+        return -1;
+    }
+    return now;
+}
+
 bool cache_put(
     cache_entry_t *out_entry,
     const char *key,
@@ -56,7 +67,14 @@ bool cache_put(
         return false;
     }
 
-    // todo: Write TTL expiry header
+    // TTL header buffer. +1 for minus sign, +1 for \n, +1 for \0
+    char ttl_header[TIME_MAX_DIGITS + 3];
+    time_t expiry = _current_time() + ttl;
+    int ttlh_len = snprintf(ttl_header, sizeof(ttl_header), "%ld\n", (int64_t)expiry);
+    // Write TTL header
+    if (!write_file(out_entry->file, ttl_header, ttlh_len)) {
+        return false;
+    }
 
     // Write data
     if (!write_file(out_entry->file, content, content_len)) {
@@ -121,8 +139,28 @@ char *cache_get(
         return NULL;
     }
 
-    if (cache_is_expired(file_content)) {
-        // Cache entry is expired
+    // Get TTL header
+    int nl_idx = strnfind(file_content, '\n', file_size);
+    if (nl_idx == -1) {
+        elog("Invalid cache header: no newline found");
+        free(file_content);
+        cache_close_entry(out_entry);
+        return NULL;
+    }
+    file_content[nl_idx] = '\0'; // split into two strings
+
+    char *content = file_content + nl_idx + 1; // pointer to content without TTL header
+    int expiry;
+    if (!strtoint(file_content, &expiry, NULL, false)) {
+        elog("Invalid cache header: couldn't parse integer \"%s\"", file_content);
+        free(file_content);
+        cache_close_entry(out_entry);
+        return NULL;
+    }
+
+    // Check expiry
+    if (_current_time() > expiry) {
+        vlog("Cache entry is expired!");
         free(file_content);
         cache_close_entry(out_entry);
         return NULL;
@@ -130,7 +168,7 @@ char *cache_get(
 
     if (out_content_len != NULL) *out_content_len = file_size;
     *out_freeptr = (void *)file_content;
-    return file_content;
+    return content;
 }
 
 void cache_close_entry(cache_entry_t *entry) {
@@ -140,10 +178,6 @@ void cache_close_entry(cache_entry_t *entry) {
     entry->filepath = NULL;
     entry->file = NULL;
     entry->file_mode = NULL;
-}
-
-bool cache_is_expired(const char *file_content) {
-    return false;
 }
 
 char *md5(const char *input) {

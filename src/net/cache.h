@@ -61,9 +61,6 @@ char *cache_get(
 /** Close a cache entry. Use after put or append. */
 void cache_close_entry(cache_entry_t *entry);
 
-/** Returns true if the cached file content is expired. */
-bool cache_is_expired(const char *file_content);
-
 /**
  * Computes an MD5 hash on the input and outputs the hexadecimal text of the digest.
  * 
