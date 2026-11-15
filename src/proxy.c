@@ -312,16 +312,21 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("Usage: ./proxy <port>\n");
+    if (argc < 3) {
+        printf("Usage: ./proxy <port> <cache_ttl>\n");
         return 1;
     }
 
     // Parse port from command line args
     const char *proxy_ip = "0.0.0.0";
     int proxy_port;
+    int cache_ttl;
     if (!strtoint(argv[1], &proxy_port, NULL, true)) {
         printf("Error: port must be a number\n");
+        return 1;
+    }
+    if (!strtoint(argv[2], &cache_ttl, NULL, true)) {
+        printf("Error: cache TTL must be a number\n");
         return 1;
     }
 
@@ -348,6 +353,6 @@ int main(int argc, char **argv) {
         *client_sock_copy = client_sock;
 
         // todo: Launch thread
-        proxy_handle_client(client_sock_copy, 0); // todo: ttl
+        proxy_handle_client(client_sock_copy, cache_ttl);
     }
 }
