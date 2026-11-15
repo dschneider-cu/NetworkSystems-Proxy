@@ -45,10 +45,18 @@ bool cache_append(cache_entry_t *entry, const char *content, int content_len);
  * 
  * @param out_entry Cache entry struct which will be filled in
  * @param key Identifier for the cache entry
+ * @param out_content_len Output param for the length of the returned content
+ * @param out_freeptr Output param for a pointer to free the returned content. Do NOT call free on
+ *      the returned content pointer. Will be NULL if NULL is returned.
  * @return Heap-allocated data in the cache, or NULL if the cache doesn't contain the key, or if it
  *      is expired.
  */
-char *cache_get(cache_entry_t *out_entry, const char *key);
+char *cache_get(
+    cache_entry_t *out_entry,
+    const char *key,
+    int *out_content_len,
+    void **out_freeptr
+);
 
 /** Close a cache entry. Use after put or append. */
 void cache_close_entry(cache_entry_t *entry);

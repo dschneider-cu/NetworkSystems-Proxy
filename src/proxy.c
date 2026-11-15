@@ -90,8 +90,28 @@ void proxy_put_cache(
 }
 
 bool proxy_cache_check(socket_t *client_sock, cache_entry_t *cache_entry, const char *cache_key) {
-    // todo: Check cache for key
-    // todo: Forward cached response to client
+    void *freeptr;
+    int content_len;
+    char *content = cache_get(cache_entry, cache_key, &content_len, &freeptr);
+
+    if (content != NULL) {
+        // Forward cached response to client
+        vlog("Cache HIT: %s", cache_key);
+        int sockcode = socket_send_all(client_sock, content, content_len, NULL);
+        if (sockcode != SOCKET_SUCCESS) {
+            elog("Failed to send response to client: %s", sockcode_to_str(sockcode));
+        } else {
+            vlog("Sent cached response to client");
+        }
+        free(freeptr);
+        cache_close_entry(cache_entry);
+        return true;
+    } else {
+        vlog("Cache MISS: %s", cache_key);
+    }
+
+    free(freeptr);
+    cache_close_entry(cache_entry);
     return false;
 }
 

@@ -36,12 +36,6 @@ bool cache_put(
         return false;
     }
 
-    // Failed to open file
-    if (out_entry->file == NULL) {
-        cache_close_entry(out_entry);
-        return false;
-    }
-
     // Write data
     if (!write_file(out_entry->file, content, content_len)) {
         return false;
@@ -71,7 +65,14 @@ bool cache_append(cache_entry_t *entry, const char *content, int content_len) {
     return write_file(entry->file, content, content_len);
 }
 
-char *cache_get(cache_entry_t *out_entry, const char *key) {
+char *cache_get(
+    cache_entry_t *out_entry,
+    const char *key,
+    int *out_content_len,
+    void **out_freeptr
+) {
+    if (out_content_len != NULL) *out_content_len = 0;
+    *out_freeptr = NULL;
     return NULL;
 }
 
