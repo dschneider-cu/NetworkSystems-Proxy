@@ -127,6 +127,15 @@ httpcode_t http_parse_header(header_t *header, char *line, int line_len);
 const char *http_get_request_header(const request_t *request, const char *name);
 
 /**
+ * Adds a header to the request, or updates it if it already exists.
+ * 
+ * @param request Pointer to the request
+ * @param name Header name
+ * @param value New header value
+ */
+void http_set_request_header(request_t *request, const char *name, const char *value);
+
+/**
  * Returns the value of the given header name.
  * 
  * @param response Pointer to the response
@@ -134,6 +143,15 @@ const char *http_get_request_header(const request_t *request, const char *name);
  * @return String value of the header, or NULL if the response doesn't have the header
  */
 const char *http_get_response_header(const response_t *response, const char *name);
+
+/**
+ * Adds a header to the response, or updates it if it already exists.
+ * 
+ * @param response Pointer to the response
+ * @param name Header name
+ * @param value New header value
+ */
+void http_set_response_header(response_t *response, const char *name, const char *value);
 
 /**
  * Parse a URL into host, path, and port given a request. The strings in the resulting url struct

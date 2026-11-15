@@ -124,8 +124,6 @@ httpcode_t proxy_resolve_server(request_t *request, url_t *out_url, addr_t *out_
     }
     vlog("Server hostname: %.*s", out_url->host_len, out_url->host);
 
-    // todo: Update Host header & path in request
-
     // Resolve hostname into server IP address
     char *hostname = strnclone(out_url->host, out_url->host_len);
     if (!resolve_hostname(hostname, out_url->port, out_server_addr)) {

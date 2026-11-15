@@ -201,12 +201,42 @@ const char *http_get_request_header(const request_t *request, const char *name) 
     }
 }
 
+void http_set_request_header(request_t *request, const char *name, const char *value) {
+    header_t *h = (header_t *)vec_find(&request->headers, _header_match, name);
+    if (h != NULL) {
+        // Change value
+        if (h->value != NULL) free(h->value);
+        h->value = strclone(value);
+    } else {
+        // Add header
+        h = (header_t *)malloc(sizeof(header_t));
+        h->name = strclone(name);
+        h->value = strclone(value);
+        vec_push(&request->headers, h);
+    }
+}
+
 const char *http_get_response_header(const response_t *response, const char *name) {
     header_t *header = (header_t *)vec_find(&response->headers, _header_match, name);
     if (header != NULL) {
         return header->value;
     } else {
         return NULL;
+    }
+}
+
+void http_set_response_header(response_t *response, const char *name, const char *value) {
+    header_t *h = (header_t *)vec_find(&response->headers, _header_match, name);
+    if (h != NULL) {
+        // Change value
+        if (h->value != NULL) free(h->value);
+        h->value = strclone(value);
+    } else {
+        // Add header
+        h = (header_t *)malloc(sizeof(header_t));
+        h->name = strclone(name);
+        h->value = strclone(value);
+        vec_push(&response->headers, h);
     }
 }
 
