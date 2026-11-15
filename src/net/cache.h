@@ -2,13 +2,13 @@
 #define CACHE_H
 
 #include <stdbool.h>
+#include "http.h"
 #include "../file.h"
 
 typedef struct {
     char *filepath;
     FILE *file;
     const char *file_mode;
-    // todo: expiry
 } cache_entry_t;
 
 /**
@@ -30,6 +30,9 @@ bool cache_put(
 
 /** Initializes a cache_entry_t struct */
 void init_cache_entry(cache_entry_t *entry);
+
+/** Makes a cache key given a URL and returns a heap-allocated cache key string */
+char *make_cache_key(const url_t *url);
 
 /**
  * Append more data to the end of an existing cache entry.

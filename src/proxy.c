@@ -56,20 +56,6 @@ void proxy_send_err(const socket_t *sock, httpcode_t code) {
     free_response(&resp);
 }
 
-char *proxy_get_cache_key(const url_t *url) {
-    if (strnfind(url->path, '?', url->path_len) != -1) {
-        return NULL;
-    }
-
-    char *host = strnclone(url->host, url->host_len);
-    char *path = strnclone(url->path, url->path_len);
-    char *key = path_join(host, path);
-
-    free(host);
-    free(path);
-    return key;
-}
-
 void proxy_put_cache(
     cache_entry_t *out_entry,
     const char *cache_key,
@@ -214,7 +200,7 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
     }
 
     // Check cache
-    cache_key = proxy_get_cache_key(&url);
+    cache_key = make_cache_key(&url);
     if (proxy_check_cache(client_sock, &cache_entry, cache_key)) {
         // Cache hit! Done.
         goto cleanup;

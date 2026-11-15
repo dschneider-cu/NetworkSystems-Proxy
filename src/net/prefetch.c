@@ -1,4 +1,7 @@
 #include "prefetch.h"
+#include "http.h"
+#include "socket.h"
+#include "cache.h"
 #include "../utils.h"
 
 // Thread-safe queue using a linked list
@@ -50,6 +53,10 @@ vec_t pf_read_links(char *html) {
 
 }
 
+void pf_fetch(char *link) {
+
+}
+
 void *pf_thread_main(void *arg) {
     while (true) {
         char *cache_key = pfq_dequeue();
@@ -67,6 +74,6 @@ pthread_t prefetch_launch_thread() {
     return thread_id;
 }
 
-void prefetch_enqueue(const char *cache_key) {
-    pfq_enqueue(strclone(cache_key));
+void prefetch_enqueue(const url_t *url) {
+    pfq_enqueue(make_cache_key(url));
 }
