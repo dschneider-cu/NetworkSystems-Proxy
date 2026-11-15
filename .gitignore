@@ -1,6 +1,7 @@
 /obj
 /proxy
 /client
+/test
 /cache/*
 /artifacts
 *.o
