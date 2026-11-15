@@ -612,7 +612,7 @@ char *http_make_response_text(const response_t *response, int *out_len) {
 }
 
 response_t *http_send_and_receive(
-    const char *url,
+    const request_t *request,
     int *out_sockcode,
     resp_content_callback_t content_callback,
     void *ctx,
@@ -624,16 +624,11 @@ response_t *http_send_and_receive(
 
     // Allocate result response
     response_t *response = (response_t *)malloc(sizeof(response_t));
-    
-    // Make GET request
-    request_t request;
-    http_make_request(&request, "GET", url, "HTTP/1.1", NULL, 0);
 
     // Parse URL
     url_t parsed_url;
     httpcode = http_parse_url(&parsed_url, &request);
     if (httpcode != HTTP_OK) {
-        free_request(&request);
         http_make_simple_response(response, HTTP_BAD_REQUEST);
         return response;
     }
@@ -642,7 +637,6 @@ response_t *http_send_and_receive(
     addr_t server_addr;
     char *hostname = strnclone(parsed_url.host, parsed_url.host_len);
     if (!resolve_hostname(hostname, parsed_url.port, &server_addr)) {
-        free_request(&request);
         free(hostname);
         http_make_simple_response(response, HTTP_BAD_GATEWAY);
         return response;
@@ -654,7 +648,6 @@ response_t *http_send_and_receive(
     sockcode = create_socket(&server_socket, &server_addr, SOCKET_CLIENT);
     if (sockcode != SOCKET_SUCCESS) {
         *out_sockcode = sockcode;
-        free_request(&request);
         http_make_simple_response(response, HTTP_BAD_GATEWAY);
         return response;
     }
@@ -664,7 +657,6 @@ response_t *http_send_and_receive(
     if (sockcode != SOCKET_SUCCESS) {
         *out_sockcode = sockcode;
         close_socket(&server_socket);
-        free_request(&request);
         http_make_simple_response(response, HTTP_BAD_GATEWAY);
         return response;
     }
@@ -677,11 +669,9 @@ response_t *http_send_and_receive(
     if (sockcode != SOCKET_SUCCESS) {
         *out_sockcode = sockcode;
         close_socket(&server_socket);
-        free_request(&request);
         http_make_simple_response(response, HTTP_BAD_GATEWAY);
         return response;
     }
-    free_request(&request);
 
     // Receive response
     httpcode = http_receive_response(&server_reader, &sockcode, &response);

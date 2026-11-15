@@ -274,7 +274,7 @@ char *http_make_response_text(const response_t *response, int *out_len);
  * Sends a GET request given a URL string and receives a response. Response content will be
  * received in chunks and processed by `content_callback`.
  * 
- * @param url URL string to fetch
+ * @param request Request to send
  * @param out_sockcode Output param for the socket code
  * @param content_callback Callback function to process chunks of the received response content.
  *      See `resp_content_callback_t`
@@ -283,7 +283,7 @@ char *http_make_response_text(const response_t *response, int *out_len);
  * @return A heap-allocated response.
  */
 response_t *http_send_and_receive(
-    const char *url,
+    const request_t *request,
     int *out_sockcode,
     resp_content_callback_t content_callback,
     void *ctx,
