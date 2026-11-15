@@ -35,11 +35,21 @@ char *path_join(const char *path1, const char *path2) {
 }
 
 FILE *open_file(const char *filepath, const char *mode) {
-    if (filepath == NULL) {
-        return NULL;
-    }
+    if (filepath == NULL) return NULL;
 
     FILE *file = fopen(filepath, mode);
+    if (file == NULL) {
+        pelog("Error opening file: %s", filepath);
+        return NULL;
+    }
+    
+    return file;
+}
+
+FILE *reopen_file(FILE* file, const char *filepath, const char *new_mode) {
+    if (filepath == NULL || file == NULL) return NULL;
+
+    file = freopen(filepath, new_mode, file);
     if (file == NULL) {
         pelog("Error opening file: %s", filepath);
         return NULL;

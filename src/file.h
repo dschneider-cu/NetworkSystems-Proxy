@@ -18,6 +18,9 @@ char *path_join(const char *path1, const char *path2);
 /** Open a file at the given path */
 FILE *open_file(const char *filepath, const char *mode);
 
+/** Reopen a file with a new mode */
+FILE *reopen_file(FILE* file, const char *filepath, const char *new_mode);
+
 /** Closes a file */
 void close_file(FILE *file);
 
