@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <time.h>
+#include <stdarg.h>
 #include "utils.h"
 
 void init_rand() {
@@ -326,6 +327,20 @@ void linkedlist_push(linkedlist_t *list, void *data) {
     list->size++;
 }
 
+void *linkedlist_peek(const linkedlist_t *list) {
+    if (list == NULL || list->tail == NULL) return NULL;
+    return list->tail->data;
+}
+
+void *linkedlist_popleft(linkedlist_t *list) {
+    if (list == NULL || list->head == NULL) return NULL;
+    llnode_t *old_head = list->head;
+    void *data = old_head->data;
+    list->head = old_head->next;
+    free(old_head);
+    return data;
+}
+
 void linkedlist_free(linkedlist_t *list) {
     if (list == NULL || list->size == 0) return;
     llnode_t *node = list->head;
@@ -426,6 +441,11 @@ void vec_push(vec_t *vec, void *data) {
     }
     
     vec->array[vec->size++] = data;
+}
+
+void *vec_pop(vec_t *vec) {
+    if (vec->size == 0) return NULL;
+    return vec->array[--vec->size];
 }
 
 void vec_clear(vec_t *vec) {

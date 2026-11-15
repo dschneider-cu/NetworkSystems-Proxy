@@ -4,7 +4,6 @@
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <stdarg.h>
 
 /** Smaller of a and b */
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
@@ -53,6 +52,12 @@ void linkedlist_init(linkedlist_t *list);
 /** Push data to the linked list */
 void linkedlist_push(linkedlist_t *list, void *data);
 
+/** Returns the data at the end of the list or NULL if the list is empty */
+void *linkedlist_peek(const linkedlist_t *list);
+
+/** Pops and returns the data at the start of the list or NULL if the list is empty */
+void *linkedlist_popleft(linkedlist_t *list);
+
 /** Free linked list memory */
 void linkedlist_free(linkedlist_t *list);
 
@@ -97,6 +102,9 @@ void vec_expand(vec_t *vec, int new_capacity);
 
 /** Push data to the vec */
 void vec_push(vec_t *vec, void *data);
+
+/** Pop and return the rightmost element of the vec, or NULL if the vec is empty */
+void *vec_pop(vec_t *vec);
 
 /** Clears all elements of a vec */
 void vec_clear(vec_t *vec);
