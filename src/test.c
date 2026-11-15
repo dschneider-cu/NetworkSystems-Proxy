@@ -5,21 +5,36 @@
 
 bool VERBOSE = true;
 
+httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
+    int *i = (int *)ctx;
+    vlog("Chunk %d [%d bytes] %.*s\n", *i, chunk_len, chunk_len, chunk);
+    (*i)++;
+    return HTTP_OK;
+}
+
 int main() {
     printf("Hello world\n");
 
-    request_t r;
-    http_make_request(&r, "GET", "http://example.foo/hello?val=abcdefg", "HTTP/1.1", NULL, 0);
+    request_t req;
+    const char *headers[] = {"Host", "netsys.cs.colorado.edu"};
+    http_make_request(&req, "GET", "/index.html", "HTTP/1.1", headers, 1);
+    print_request(&req);
+    printf("\n\n");
 
-    url_t url;
-    http_parse_url(&url, &r);
+    int sockcode;
+    int i;
+    response_t *resp = http_send_and_receive(
+        &req,
+        &sockcode,
+        content_callback,
+        &i,
+        5
+    );
 
-    printf("Host: \"%.*s\"\n", url.host_len, url.host);
-    printf("Path: \"%.*s\"\n", url.path_len, url.path);
-    printf("Query: \"%.*s\"\n", url.query_len, url.query);
-    printf("Port: %d\n", url.port);
+    print_response(resp);
 
-    free_request(&r);
+    free_request(&req);
+    free_response(resp);
 
     return 0;
 }

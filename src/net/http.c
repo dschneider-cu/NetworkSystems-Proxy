@@ -627,7 +627,7 @@ response_t *http_send_and_receive(
 
     // Parse URL
     url_t parsed_url;
-    httpcode = http_parse_url(&parsed_url, &request);
+    httpcode = http_parse_url(&parsed_url, request);
     if (httpcode != HTTP_OK) {
         http_make_simple_response(response, HTTP_BAD_REQUEST);
         return response;
@@ -665,7 +665,7 @@ response_t *http_send_and_receive(
     init_sockreader(&server_reader, &server_socket, timeout_sec);
 
     // Send request
-    sockcode = http_send_request(&request, &server_socket);
+    sockcode = http_send_request(request, &server_socket);
     if (sockcode != SOCKET_SUCCESS) {
         *out_sockcode = sockcode;
         close_socket(&server_socket);
@@ -674,7 +674,7 @@ response_t *http_send_and_receive(
     }
 
     // Receive response
-    httpcode = http_receive_response(&server_reader, &sockcode, &response);
+    httpcode = http_receive_response(&server_reader, &sockcode, response);
     if (httpcode != HTTP_OK) {
         *out_sockcode = sockcode;
         close_socket(&server_socket);
@@ -686,7 +686,7 @@ response_t *http_send_and_receive(
     httpcode = http_receive_response_content(
         &server_reader,
         &sockcode,
-        &response,
+        response,
         content_callback,
         ctx
     );
@@ -697,6 +697,7 @@ response_t *http_send_and_receive(
         return response;
     }
 
+    close_socket(&server_socket);
     return response;
 }
 
@@ -785,7 +786,7 @@ void http_make_response(
 }
 
 void http_make_simple_response(response_t *out_response, httpcode_t code) {
-    http_make_response(&out_response, code, NULL, 0, NULL, 0);
+    http_make_response(out_response, code, NULL, 0, NULL, 0);
 }
 
 void free_header(header_t *header) {
