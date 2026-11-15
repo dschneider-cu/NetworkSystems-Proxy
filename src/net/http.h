@@ -271,6 +271,26 @@ char *http_make_request_text(const request_t *request, int *out_len);
 char *http_make_response_text(const response_t *response, int *out_len);
 
 /**
+ * Sends a GET request given a URL string and receives a response. Response content will be
+ * received in chunks and processed by `content_callback`.
+ * 
+ * @param url URL string to fetch
+ * @param out_sockcode Output param for the socket code
+ * @param content_callback Callback function to process chunks of the received response content.
+ *      See `resp_content_callback_t`
+ * @param ctx Arbitrary context which will be passed into `content_callback`
+ * @param timeout_sec Seconds to wait before timing out
+ * @return A heap-allocated response.
+ */
+response_t *http_send_and_receive(
+    const char *url,
+    int *out_sockcode,
+    resp_content_callback_t content_callback,
+    void *ctx,
+    int timeout_sec
+);
+
+/**
  * Send an HTTP request on the given socket.
  * 
  * @param request HTTP request
@@ -325,6 +345,14 @@ void http_make_response(
     const char *content,
     int content_len
 );
+
+/**
+ * Make a simple response with just a status code.
+ * 
+ * @param out_response Output param for the response
+ * @param code Response status code
+ */
+void http_make_simple_response(response_t *out_response, httpcode_t code);
 
 /**
  * Free memory inside a header_t. Does not free `header` itself if it was allocated with malloc.

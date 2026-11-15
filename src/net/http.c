@@ -277,8 +277,11 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
         }
     }
 
-    // Find length of the host by searching for a slash or colon
-    while (host[host_len] != '\0' && host[host_len] != '/' && host[host_len] != ':') {
+    // Find length of the host by searching for a slash, colon, or question mark
+    while (host[host_len] != '\0' 
+        && host[host_len] != '/' 
+        && host[host_len] != ':' 
+        && host[host_len] != '?') {
         host_len++;
     }
     
@@ -608,6 +611,105 @@ char *http_make_response_text(const response_t *response, int *out_len) {
     return buffer;
 }
 
+response_t *http_send_and_receive(
+    const char *url,
+    int *out_sockcode,
+    resp_content_callback_t content_callback,
+    void *ctx,
+    int timeout_sec
+) {
+    httpcode_t httpcode;
+    int sockcode;
+    *out_sockcode = SOCKET_SUCCESS;
+
+    // Allocate result response
+    response_t *response = (response_t *)malloc(sizeof(response_t));
+    
+    // Make GET request
+    request_t request;
+    http_make_request(&request, "GET", url, "HTTP/1.1", NULL, 0);
+
+    // Parse URL
+    url_t parsed_url;
+    httpcode = http_parse_url(&parsed_url, &request);
+    if (httpcode != HTTP_OK) {
+        free_request(&request);
+        http_make_simple_response(response, HTTP_BAD_REQUEST);
+        return response;
+    }
+
+    // Resolve server
+    addr_t server_addr;
+    char *hostname = strnclone(parsed_url.host, parsed_url.host_len);
+    if (!resolve_hostname(hostname, parsed_url.port, &server_addr)) {
+        free_request(&request);
+        free(hostname);
+        http_make_simple_response(response, HTTP_BAD_GATEWAY);
+        return response;
+    }
+    free(hostname);
+    
+    // Create server socket
+    socket_t server_socket;
+    sockcode = create_socket(&server_socket, &server_addr, SOCKET_CLIENT);
+    if (sockcode != SOCKET_SUCCESS) {
+        *out_sockcode = sockcode;
+        free_request(&request);
+        http_make_simple_response(response, HTTP_BAD_GATEWAY);
+        return response;
+    }
+    
+    // Connect to server
+    sockcode = socket_connect(&server_socket);
+    if (sockcode != SOCKET_SUCCESS) {
+        *out_sockcode = sockcode;
+        close_socket(&server_socket);
+        free_request(&request);
+        http_make_simple_response(response, HTTP_BAD_GATEWAY);
+        return response;
+    }
+
+    sockreader_t server_reader;
+    init_sockreader(&server_reader, &server_socket, timeout_sec);
+
+    // Send request
+    sockcode = http_send_request(&request, &server_socket);
+    if (sockcode != SOCKET_SUCCESS) {
+        *out_sockcode = sockcode;
+        close_socket(&server_socket);
+        free_request(&request);
+        http_make_simple_response(response, HTTP_BAD_GATEWAY);
+        return response;
+    }
+    free_request(&request);
+
+    // Receive response
+    httpcode = http_receive_response(&server_reader, &sockcode, &response);
+    if (httpcode != HTTP_OK) {
+        *out_sockcode = sockcode;
+        close_socket(&server_socket);
+        http_make_simple_response(response, HTTP_BAD_GATEWAY);
+        return response;
+    }
+
+    // Receive response content
+    httpcode = http_receive_response_content(
+        &server_reader,
+        &sockcode,
+        &response,
+        content_callback,
+        ctx
+    );
+    if (httpcode != HTTP_OK) {
+        *out_sockcode = sockcode;
+        close_socket(&server_socket);
+        http_make_simple_response(response, HTTP_BAD_GATEWAY);
+        return response;
+    }
+
+    return response;
+}
+
 int http_send_request(const request_t *request, const socket_t *sock) {
     int len;
     char *text = http_make_request_text(request, &len);
@@ -690,6 +792,10 @@ void http_make_response(
 
     out_response->nlines = nheaders + 1;
     out_response->complete = true;
+}
+
+void http_make_simple_response(response_t *out_response, httpcode_t code) {
+    http_make_response(&out_response, code, NULL, 0, NULL, 0);
 }
 
 void free_header(header_t *header) {
