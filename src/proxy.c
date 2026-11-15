@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "net/socket.h"
 #include "net/http.h"
 #include "net/blocklist.h"
@@ -311,6 +312,19 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
         if (cache_key != NULL) free(cache_key);
 }
 
+typedef struct {
+    socket_t *client_sock;
+    int cache_ttl;
+} proxy_thread_args_t;
+
+void *proxy_thread_main(void *arg) {
+    proxy_thread_args_t *args = (proxy_thread_args_t *)arg;
+    proxy_handle_client(args->client_sock, args->cache_ttl);
+    free(args);
+    return NULL;
+}
+
+
 int main(int argc, char **argv) {
     if (argc < 3) {
         printf("Usage: ./proxy <port> <cache_ttl>\n");
@@ -352,7 +366,12 @@ int main(int argc, char **argv) {
         socket_t *client_sock_copy = (socket_t *)malloc(sizeof(socket_t));
         *client_sock_copy = client_sock;
 
-        // todo: Launch thread
-        proxy_handle_client(client_sock_copy, cache_ttl);
+        // Launch thread
+        proxy_thread_args_t *args = (proxy_thread_args_t *)malloc(sizeof(proxy_thread_args_t));
+        args->client_sock = client_sock_copy;
+        args->cache_ttl = cache_ttl;
+        pthread_t thread_id;
+        pthread_create(&thread_id, NULL, proxy_thread_main, args);
+        pthread_detach(thread_id);
     }
 }
