@@ -243,8 +243,8 @@ void http_set_response_header(response_t *response, const char *name, const char
 httpcode_t http_parse_url(url_t *url, const request_t *request) {
     char *urlstr = request->url;
 
-    // GET http://example.foo/hello HTTP/1.1
-    //     ^url   ^host      ^path
+    // GET http://example.foo/hello?val=abcdefg HTTP/1.1
+    //     ^url   ^host      ^path  ^query
     const char *host;
     int host_len = 0;
     bool host_in_url;
@@ -252,6 +252,8 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
     int path_len = 0;
     const char *portstr;
     int port_len = 0;
+    const char *query;
+    int query_len;
     int port;
 
     // Look for host in URL
@@ -290,18 +292,33 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
         }
     }
 
-    // Remainder of the URL is the path
+    // Find length of path by looking for '?'
     if (host_in_url) {
         path = portstr + port_len;
     } else {
         path = request->url;
     }
-    path_len = strlen(path);
+    while (path[path_len] != '\0' && path[path_len] != '?') {
+        path_len++;
+    }
+
+    // Remainder of the string is the query
+    query = path + path_len;
+    if (query[0] == '?') query++; // consume question mark
+    query_len = strlen(query);
+
+    // If the path is empty, default to index ("/")
+    if (path_len == 0) {
+        path = "/";
+        path_len = 1;
+    }
     
     url->host_len = host_len;
     url->host = host;
     url->path = path;
     url->path_len = path_len;
+    url->query = query;
+    url->query_len = query_len;
     url->port = port;
     return HTTP_OK;
 }

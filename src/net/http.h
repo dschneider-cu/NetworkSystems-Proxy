@@ -59,6 +59,8 @@ typedef struct {
     int host_len;
     const char *path; // May be empty string
     int path_len;
+    const char *query; // Stuff after question mark
+    int query_len;
     int port;
 } url_t;
 
