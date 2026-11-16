@@ -104,6 +104,53 @@ bool cache_append(cache_entry_t *entry, const char *content, int content_len) {
     return write_file(entry->file, content, content_len);
 }
 
+bool cache_has(const char *key) {
+    char *hash = md5(key);
+    char *filepath = path_join(CACHE_DIR, hash);
+    free(hash);
+
+    cache_entry_t entry;
+    init_cache_entry(&entry);
+    entry.filepath = filepath;
+
+    // Open file
+    if (!_ensure_entry_mode(&entry, "rb")) {
+        // Failed to open file (or doesn't exist)
+        cache_close_entry(&entry);
+        return false;
+    }
+
+    // Read file size
+    long file_size = read_file_size(entry.file);
+    if (file_size < TIME_MAX_DIGITS) {
+        return false;
+    }
+
+    // Read first line
+    char *buffer[TIME_MAX_DIGITS + 1];
+    if (!read_file_content(entry.file, buffer, TIME_MAX_DIGITS)) {
+        return false;
+    }
+    buffer[TIME_MAX_DIGITS] = '\0';
+
+    // Parse TTL header
+    int expiry;
+    if (!strtoint(buffer, &expiry, NULL, true)) {
+        elog("Invalid cache header: couldn't parse integer \"%s\"", buffer);
+        cache_close_entry(&entry);
+        return false;
+    }
+
+    // Check expiry
+    if (_current_time() > expiry) {
+        cache_close_entry(&entry);
+        return false;
+    }
+
+    cache_close_entry(&entry);
+    return true;
+}
+
 char *cache_get(
     cache_entry_t *out_entry,
     const char *key,

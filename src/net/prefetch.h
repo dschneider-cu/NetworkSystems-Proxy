@@ -4,8 +4,16 @@
 #include <pthread.h>
 #include "http.h"
 
-/** Launch thread to handle prefetching */
-pthread_t prefetch_launch_thread();
+/**
+ * Launch a thread to handle prefetching.
+ * 
+ * After caching a response, call `prefetch_enqueue(url)` to fetch links in the HTML asynchronously
+ * and put the pages in the cache.
+ * 
+ * @param cache_ttl Time to live for prefetched cache entries
+ * @return ID of the spawned thread
+ */
+pthread_t prefetch_launch_thread(int cache_ttl);
 
 /**
  * Enqueue a cache key to be prefetched. This will read the cache entry with the given key, parse

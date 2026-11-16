@@ -19,6 +19,7 @@ typedef struct {
  * @param content Pointer to the content to write into the cache
  * @param content_len Number of bytes in the content
  * @param ttl Time to live, in seconds
+ * @return false if an error occurred opening/writing the file
  */
 bool cache_put(
     cache_entry_t *out_entry,
@@ -42,6 +43,14 @@ char *make_cache_key(const url_t *url);
  * @param content_len Number of bytes in the content
  */
 bool cache_append(cache_entry_t *entry, const char *content, int content_len);
+
+/**
+ * Returns true if the cache has an entry for the given key, and it is not expired.
+ * 
+ * @param key Identifier for the cache entry
+ * @return True/false if the cache entry exists. Does not read the file content.
+ */
+bool cache_has(const char *key);
 
 /**
  * Retrieve data from the cache

@@ -60,30 +60,83 @@ vec_t pf_read_links(char *html) {
     return links;
 }
 
+typedef struct {
+    int *chunk_ctr;
+    char *cache_key;
+    cache_entry_t *cache_entry;
+    int ttl;
+} pf_fetch_callback_ctx_t;
+
 httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
-    // Put in cache
+    pf_fetch_callback_ctx_t *pfctx = (pf_fetch_callback_ctx_t *)ctx;
+    int chunk_i = pfctx->chunk_ctr;
+    cache_entry_t *entry = pfctx->cache_entry;
+    char *key = pfctx->cache_key;
+
+    if (chunk_i == 0) {
+        // First chunk - put in cache
+        cache_put(entry, key, chunk, chunk_len, pfctx->ttl);
+    } else {
+        // Subsequent chunks - append
+        cache_append(entry, chunk, chunk_len);
+    }
+
+    // increment chunk counter
+    (*pfctx->chunk_ctr)++;
 }
 
-void pf_fetch(char *link) {
-    // Check if already in cache
-
+/** Fetches the given link and puts it in the cache */
+void pf_fetch(char *link, int ttl) {
     request_t request;
     http_make_request(&request, "GET", link, "HTTP/1.1", NULL, 0);
 
+    // Parse link
+    url_t url;
+    httpcode_t code = http_parse_url(&url, &request);
+    if (code != HTTP_OK) {
+        elog("Failed to parse link for prefetching: %s", link);
+        free_request(&request);
+        return;
+    }
+
+    // Check if already in cache
+    char *cache_key = make_cache_key(&url);
+    if (cache_has(cache_key)) {
+        // cache entry already exists. Skip
+        free_request(&request);
+        free(cache_key);
+        return;
+    }
+
+    // Context for content callback
+    cache_entry_t cache_entry;
+    int chunk_ctr = 0;
+    pf_fetch_callback_ctx_t ctx = {
+        &chunk_ctr,
+        cache_key,
+        &cache_entry,
+        ttl
+    };
+    
     int sockcode;
     response_t *response = http_send_and_receive(
         &request,
         &sockcode,
         pf_content_callback,
-        NULL, // cache entry
+        &ctx,
         PREFETCH_TIMEOUT_SEC
     );
 
+    cache_close_entry(&cache_entry);
+    free(cache_key);
     free_request(&request);
     free_response(&response);
 }
 
 void *pf_thread_main(void *arg) {
+    int ttl = *((int *)arg);
+    free(arg);
+
     while (true) {
         url_t *url = pfq_dequeue();
         if (url == NULL) continue;
@@ -96,9 +149,12 @@ void *pf_thread_main(void *arg) {
     }
 }
 
-pthread_t prefetch_launch_thread() {
+pthread_t prefetch_launch_thread(int cache_ttl) {
+    int *ttl_ptr = (int *)malloc(sizeof(int));
+    *ttl_ptr = cache_ttl;
+
     pthread_t thread_id;
-    pthread_create(&thread_id, NULL, pf_thread_main, NULL);
+    pthread_create(&thread_id, NULL, pf_thread_main, ttl_ptr);
     return thread_id;
 }
 
