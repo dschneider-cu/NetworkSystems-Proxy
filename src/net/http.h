@@ -5,9 +5,10 @@
 #include "socket.h"
 #include "../utils.h"
 
-#define PORT_HTTP  80
-#define PORT_HTTPS 443
-#define PORT_MAX   65535
+#define PORT_HTTP       80
+#define PORT_HTTPS      443
+#define PORT_MAX        65535
+#define PORT_MAX_DIGITS 5 // strlen("65535")
 
 typedef enum {
     HTTP_OK                         = 200,
@@ -165,6 +166,23 @@ void http_set_response_header(response_t *response, const char *name, const char
  * @return An HTTP status code representing the result of the parsing
  */
 httpcode_t http_parse_url(url_t *url, const request_t *request);
+
+/**
+ * Adds a Host header if it doesn't exist. Removes the host and the 'http://' from the request path
+ * if it's there. For example:
+ * ```
+ * GET http://example.com/index.html HTTP/1.1
+ * ```
+ * Becomes:
+ * ```
+ * GET /index.html HTTP/1.1
+ * Host: example.com
+ * ```
+ * 
+ * @param request Pointer to the request
+ * @param url Parsed URL
+ */
+void http_move_host_to_header(request_t *request, url_t *url);
 
 /**
  * Receives an HTTP request from a socket reader and outputs a parsed request.

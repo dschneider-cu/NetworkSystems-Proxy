@@ -326,6 +326,45 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
     return HTTP_OK;
 }
 
+void http_move_host_to_header(request_t *request, url_t *url) {
+    char *host = strnclone(url->host, url->host_len);
+    if (url->port != PORT_HTTP && url->port != PORT_HTTPS) {
+        // Concatenate host, ":", and port
+        char port_buf[PORT_MAX_DIGITS + 1];
+        if (!inttostr(url->port, port_buf)) {
+            elog("Error converting port to string: %d", url->port);
+            return;
+        }
+        char *host_with_port = strconcat(host, ":", port_buf);
+        free(host);
+        host = host_with_port;
+    }
+    http_set_request_header(request, "Host", host);
+    // set_request_header makes a copy so we need to get the copy and set url->host to point to it
+    // so we can free `host`
+    url->host = http_get_request_header(request, "Host");
+    free(host);
+    
+    char *path;
+    if (url->query_len > 0) {
+        // Concatenate path, ?, and query
+        int len = url->path_len + url->query_len + 1; // +1 for '?'
+        path = (char *)malloc(len + 1);
+        memcpy(path, url->path, url->path_len);
+        path[url->path_len] = '?';
+        memcpy(path + url->path_len + 1, url->query, url->query_len);
+        
+        url->path = path;
+        url->query = path + url->path_len + 1;
+        path[len] = '\0';
+    } else {
+        path = strnclone(url->path, url->path_len);
+        url->path = path;
+    }
+    free(request->url); // nothing in `url` points to this now
+    request->url = path;
+}
+
 httpcode_t http_receive_request(
     sockreader_t *reader,
     int *out_sockcode,

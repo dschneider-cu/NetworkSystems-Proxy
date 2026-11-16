@@ -253,7 +253,7 @@ bool strtoint(const char *s, int *out, int *out_len, bool allow_trailing);
 
 /**
  * Converts an int into a string and writes it into `buffer`. Buffer size must be large enough to
- * hold the string. Use `intstrlen`.
+ * hold the string (plus null terminator). Use `intstrlen`.
  */
 bool inttostr(int n, char *buffer);
 
@@ -273,6 +273,9 @@ char *strnclone(const char *s, int len);
 /** Concatenates strings, returning a new heap-allocated string. */
 #define strconcat(...) _strconcat_impl(__VA_ARGS__, NULL);
 char *_strconcat_impl(const char *first, ...);
+
+/** Concatenates two strings given their lengths, returning a new heap-allocated string. */
+char *strnconcat(const char *s1, int s1_len, const char *s2, int s2_len);
 
 /**
  * Splits a string by a delimiter and returns a vec of substrings. Each substring will be a heap-

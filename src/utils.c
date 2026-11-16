@@ -282,6 +282,14 @@ char *_strconcat_impl(const char *first, ...) {
     return result;
 }
 
+char *strnconcat(const char *s1, int s1_len, const char *s2, int s2_len) {
+    char *buffer = (char *)malloc(s1_len + s2_len + 1);
+    memcpy(buffer, s1, s1_len);
+    memcpy(buffer + s1_len, s2, s2_len);
+    buffer[s1_len + s2_len] = '\0';
+    return buffer;
+}
+
 vec_t strsplit(const char *s, const char *delim) {
     vec_t vec;
     vec_init(&vec);
