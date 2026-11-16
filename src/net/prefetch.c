@@ -129,6 +129,9 @@ void pf_fetch(char *link, int ttl) {
         return;
     }
 
+    // Fix request path & Host header
+    http_move_host_to_header(&request, &url);
+
     // Context for content callback
     cache_entry_t cache_entry;
     init_cache_entry(&cache_entry);
