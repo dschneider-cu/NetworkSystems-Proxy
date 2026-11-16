@@ -22,6 +22,7 @@ void pfq_enqueue(url_t *url) {
     pthread_mutex_lock(&pfq.lock);
     linkedlist_push(&pfq.list, url);
     pthread_mutex_unlock(&pfq.lock);
+    printf("ENQUEUE %s\n", url->host);
     // Signal to waiter thread that data is available
     pthread_cond_signal(&pfq.cond);
 }
@@ -39,6 +40,7 @@ url_t *pfq_dequeue() {
         } else {
             // Queue is not empty. Lock guaranteed by c.wait() or lk.lock()
             url_t *url = (url_t *)linkedlist_popleft(&pfq.list);
+            if (url != NULL) printf("DEQUEUE %s\n", url->host);
             pthread_mutex_unlock(&pfq.lock);
             return url;
         }
@@ -242,11 +244,11 @@ httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len,
 
 /**
  * Resolves relative links, "/index.html" into full links, "http://example.com/index.html"
- * Returns NULL if unchanged.
+ * Returns a copy of the original link if it starts with http:// or https://
  */
 char *resolve_relative_link(const char *link, const url_t *url) {
     if (strstartswith(link, "http://") || strstartswith(link, "https://")) {
-        return NULL;
+        return strclone(link);
     }
 
     // Host with port
@@ -344,11 +346,17 @@ void *pf_thread_main(void *arg) {
 
         // Parse HTML for links
         vec_t links = pf_extract_links(html);
+        print_vec(&links);
 
         // Fetch links & place in cache
         for (int i = 0; i < vec_size(&links); i++) {
             const char *link = vec_get(&links, i);
-            pf_fetch(link, ttl);
+            if (strstartswith(link, "#")) continue;
+            char *resolved_link = resolve_relative_link(link, url);
+
+            log("Prefetching %s", resolved_link);
+            pf_fetch(resolved_link, ttl);
+            free(resolved_link);
         }
 
         // Clean up

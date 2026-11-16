@@ -5,6 +5,7 @@
 #include "net/http.h"
 #include "net/blocklist.h"
 #include "net/cache.h"
+#include "net/prefetch.h"
 #include "utils.h"
 
 // Max time to wait while receiving requests from client
@@ -40,8 +41,6 @@ httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, vo
     if (!cache_append(cache_entry, chunk, chunk_len)) {
         elog("Failed to append content chunk to cache");
     }
-
-    // todo: (extra credit) parse <a> and prefetch
 
     return HTTP_OK;
 }
@@ -283,6 +282,9 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
     }
     vlog("Forwarded response content to client");
 
+    /* -- Enqueue page to be prefetched -- */
+    prefetch_enqueue(&url);
+
     /* -- Clean up resources -- */
     cleanup:
         free_request(&request);
@@ -338,6 +340,10 @@ int main(int argc, char **argv) {
 
     // Read blocklist
     blocklist = read_blocklist(BLOCKLIST_FILE);
+
+    // Launch prefetcher thread
+    pthread_t pf_thread_id = prefetch_launch_thread(cache_ttl);
+    pthread_detach(pf_thread_id);
 
     while (true) {
         // Accept client socket
