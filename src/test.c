@@ -34,11 +34,13 @@ int main() {
     void *freeptr; 
 
     char *html = cache_get(&entry, key, &content_len, &freeptr);
-    printf("%s\n", html);
-
+    // printf("%s\n", html);
+    
+    vec_t links = pf_extract_links(html);
+    print_vec(&links);
+    
     free_request(&rq);
     free(key);
     free(freeptr);
-
     return 0;
 }

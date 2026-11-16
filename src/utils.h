@@ -154,6 +154,9 @@ void print_vec(const vec_t *vec);
 
 // String functions
 
+/** Returns true if c is whitespace */
+bool iswhitespace(char c);
+
 /**
  * Strips trailing whitespace. Must be null-terminated. Modifies the string.
  * 

@@ -26,7 +26,7 @@ void prefetch_enqueue(const url_t *url);
 
 
 // todo remove
-void pf_fetch(char *link, int ttl);
-vec_t pf_extract_links(char *html);
+void pf_fetch(const char *link, int ttl);
+vec_t pf_extract_links(const char *html);
 
 #endif

@@ -78,6 +78,10 @@ void print_hexdump(const void *data, int data_len) {
     }
 }
 
+bool iswhitespace(char c) {
+    return isspace((unsigned char) c);
+}
+
 int rstrip(char *str) {
     if (str == NULL) return 0;
     

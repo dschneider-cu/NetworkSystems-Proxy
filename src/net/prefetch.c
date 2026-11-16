@@ -67,11 +67,13 @@ void free_url_copy(url_t *url) {
 
 // State machine for the HTML parser
 typedef enum {
-    SEARCHING, // Searching for anchor tag
-    IN_TAG, // In anchor tag ("a ")
-    IN_ATTRIBUTES, // In attribute list
-    IN_HREF, // Inside quotes of href attribute (found a link!)
-    IN_COMMENT, // Inside "<!-- ..."
+    SEARCHING,       // Searching for anchor tag
+    IN_TAG,          // In tag ("div ")
+    IN_ATTRIBUTES,   // In <a> attribute list
+    IN_ATTRIBUTE,    // In a specific attribute of <a>
+    IN_HREF,         // Inside quotes of href attribute (found a link!)
+    IN_VALUE,        // Inside quotes of an attribute that isn't href
+    IN_COMMENT,      // Inside "<!-- ..."
     IN_COMMENT_CLOSE // Inside "-->"
 } html_state_t;
 
@@ -85,10 +87,16 @@ typedef enum {
  * IN_TAG --token="!--"--> IN_COMMENT
  * IN_TAG --'>'--> SEARCHING
  * 
- * IN_ATTRIBUTES --token="href=\""--> IN_HREF
+ * IN_ATTRIBUTES --whitespace--> IN_ATTRIBUTES
  * IN_ATTRIBUTES --'>'--> SEARCHING
+ * IN_ATTRIBUTES --anything else--> IN_ATTRIBUTE
  * 
- * IN_HREF --'"'--> IN_ATTRIBUTES, export link
+ * IN_ATTRIBUTE --'"' && token="href=\""--> IN_HREF
+ * IN_ATTRIBUTE --'"' else--> IN_VALUE
+ * 
+ * IN_VALUE --'"'--> IN_ATTRIBUTES
+ * 
+ * IN_HREF --'"'--> SEARCHING, export link
  * 
  * IN_COMMENT --'-'--> IN_COMMENT_CLOSE
  * 
@@ -99,42 +107,108 @@ typedef enum {
 /**
  * Parses <a> tags in the given html and returns a vec of links.
  * 
- * @param html HTML string to parse (will be mutated)
- * @return Vector of strings. Each string will be a pointer into `html`
+ * @param html HTML string to parse
+ * @return Vector of heap-allocated strings
  */
-vec_t pf_extract_links(char *html) {
+vec_t pf_extract_links(const char *html) {
     vec_t links;
     vec_init(&links);
     
-    char *end = html + strlen(html);
-    char *p = html; // current position
+    const char *p = html; // current position
     html_state_t state = SEARCHING;
     const char *token;
     int token_len = 0;
 
-    while (p) {
+    while (*p) {
         char c = *p;
         p++; // consume character
+        char next = *p;
 
+        // - State machine monstrosity -
         switch (state) {
         case SEARCHING:
             if (c == '<') {
                 state = IN_TAG;
                 token = p;
+                token_len = 0;
             }
             break;
+        
         case IN_TAG:
+            token_len++;
+            if (c == '>') {
+                state = SEARCHING;
+            } else if (iswhitespace(next)) {
+                if (strneq(token, "a", token_len)) {
+                    // Found anchor tag
+                    state = IN_ATTRIBUTES;
+                } else if (strneq(token, "!--", token_len)) {
+                    state = IN_COMMENT;
+                } else {
+                    state = SEARCHING;
+                }
+            }
             break;
+        
         case IN_ATTRIBUTES:
+            if (c == '>' || next == '>') {
+                state = SEARCHING;
+            } else if (!iswhitespace(next)) {
+                state = IN_ATTRIBUTE;
+                token = p;
+                token_len = 0;
+            }
             break;
+
+        case IN_ATTRIBUTE:
+            token_len++;
+            if (c == '"') {
+                if (strneq(token, "href=\"", token_len)) {
+                    // found a link, hyah!
+                    state = IN_HREF;
+                    token = p;
+                    token_len = 0;
+                } else {
+                    state = IN_VALUE;
+                }
+            }
+            break;
+
+        case IN_VALUE:
+            if (c == '"') {
+                state = IN_ATTRIBUTES;
+            }
+            break;
+
         case IN_HREF:
+            if (c == '"') {
+                // Push link
+                char *link = strnclone(token, token_len);
+                vec_push(&links, link);
+                state = IN_ATTRIBUTES;
+            } else {
+                token_len++;
+            }
             break;
+
         case IN_COMMENT:
+            if (c == '-') {
+                state = IN_COMMENT_CLOSE;
+                token = p;
+                token_len = 0;
+            }
             break;
+
         case IN_COMMENT_CLOSE:
+            if (token_len > 3) { // len("-->")
+                state = IN_COMMENT;
+            } else if (strneq(token, "-->", token_len)) {
+                state = SEARCHING;
+            } else {
+                token_len++;
+            }
             break;
         }
-
     }
 
     return links;
@@ -167,7 +241,7 @@ httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len,
 }
 
 /** Fetches the given link and puts it in the cache */
-void pf_fetch(char *link, int ttl) {
+void pf_fetch(const char *link, int ttl) {
     request_t request;
     http_make_request(&request, "GET", link, "HTTP/1.1", NULL, 0);
 
@@ -230,7 +304,7 @@ void *pf_thread_main(void *arg) {
         // Get HTML from cache entry
         cache_entry_t entry;
         init_cache_entry(&entry);
-        char *key = make_cache_key(&url);
+        char *key = make_cache_key(url);
         int content_len;
         void *freeptr; 
 
