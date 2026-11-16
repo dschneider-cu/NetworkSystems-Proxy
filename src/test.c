@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "net/prefetch.h"
+#include "net/cache.h"
 #include "net/http.h"
 
 bool VERBOSE = true;
@@ -15,22 +17,28 @@ httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, vo
 int main() {
     printf("Hello world\n");
 
-    // request_t req;
-    // // const char *headers[] = {"Host", "netsys.cs.colorado.edu"};
-    // http_make_request(&req, "GET", "http://netsys.cs.colorado.edu/index.html?foo=bar", "HTTP/1.1", NULL, 0);
-    // print_request(&req);
-    // printf("\n\n");
+    const char *link = "http://netsys.cs.colorado.edu/index.html";
+    url_t url;
+    request_t rq;
+    http_make_request(&rq, "GET", link, "HTTP/1.1", NULL, 0);
+    http_parse_url(&url, &rq);
+    http_move_host_to_header(&rq, &url);
 
-    // url_t url;
-    // http_parse_url(&url, &req);
+    print_request(&rq);
+    printf("\n\n");
 
-    // http_move_host_to_header(&req, &url);
-    // print_request(&req);
-    // printf("\n\n");
+    cache_entry_t entry;
+    init_cache_entry(&entry);
+    char *key = make_cache_key(&url);
+    int content_len;
+    void *freeptr; 
 
-    pf_fetch("http://netsys.cs.colorado.edu/index.html", 20);
+    char *html = cache_get(&entry, key, &content_len, &freeptr);
+    printf("%s\n", html);
 
-    // free_request(&req);
+    free_request(&rq);
+    free(key);
+    free(freeptr);
 
     return 0;
 }

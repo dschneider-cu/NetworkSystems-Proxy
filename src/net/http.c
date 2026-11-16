@@ -240,7 +240,7 @@ void http_set_response_header(response_t *response, const char *name, const char
     }
 }
 
-httpcode_t http_parse_url(url_t *url, const request_t *request) {
+httpcode_t http_parse_url(url_t *out_url, const request_t *request) {
     char *urlstr = request->url;
 
     // GET http://example.foo/hello?val=abcdefg HTTP/1.1
@@ -316,13 +316,13 @@ httpcode_t http_parse_url(url_t *url, const request_t *request) {
         path_len = 1;
     }
     
-    url->host_len = host_len;
-    url->host = host;
-    url->path = path;
-    url->path_len = path_len;
-    url->query = query;
-    url->query_len = query_len;
-    url->port = port;
+    out_url->host_len = host_len;
+    out_url->host = host;
+    out_url->path = path;
+    out_url->path_len = path_len;
+    out_url->query = query;
+    out_url->query_len = query_len;
+    out_url->port = port;
     return HTTP_OK;
 }
 

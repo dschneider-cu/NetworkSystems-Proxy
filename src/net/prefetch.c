@@ -167,11 +167,35 @@ void *pf_thread_main(void *arg) {
         url_t *url = pfq_dequeue();
         if (url == NULL) continue;
 
-        // Get cache entry
-        // Call pf_read_links
-        // Fetch each link
+        // Get HTML from cache entry
+        cache_entry_t entry;
+        init_cache_entry(&entry);
+        char *key = make_cache_key(&url);
+        int content_len;
+        void *freeptr; 
 
+        char *html = cache_get(&entry, key, &content_len, &freeptr);
+        if (html == NULL) {
+            free(key);
+            cache_close_entry(&entry);
+            continue;
+        }
+
+        // Parse HTML for links
+        vec_t links = pf_read_links(html);
+
+        // Fetch links & place in cache
+        for (int i = 0; i < vec_size(&links); i++) {
+            const char *link = vec_get(&links, i);
+            pf_fetch(link, ttl);
+        }
+
+        // Clean up
+        vec_free_each(&links);
+        vec_free(&links);
         free_url_copy(url);
+        free(key);
+        free(freeptr);
     }
 }
 

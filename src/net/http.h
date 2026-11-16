@@ -161,11 +161,11 @@ void http_set_response_header(response_t *response, const char *name, const char
  * will point to indices in the `request->url` string so they will *not* be null
  * terminated.
  * 
- * @param url Result URL struct that will be filled in
+ * @param out_url Result URL struct that will be filled in
  * @param request HTTP request
  * @return An HTTP status code representing the result of the parsing
  */
-httpcode_t http_parse_url(url_t *url, const request_t *request);
+httpcode_t http_parse_url(url_t *out_url, const request_t *request);
 
 /**
  * Adds a Host header if it doesn't exist. Removes the host and the 'http://' from the request path
