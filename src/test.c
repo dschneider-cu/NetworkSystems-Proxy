@@ -15,26 +15,15 @@ httpcode_t content_callback(response_t *response, char *chunk, int chunk_len, vo
 int main() {
     printf("Hello world\n");
 
-    request_t req;
-    const char *headers[] = {"Host", "netsys.cs.colorado.edu"};
-    http_make_request(&req, "GET", "/index.html", "HTTP/1.1", headers, 1);
-    print_request(&req);
-    printf("\n\n");
+    // request_t req;
+    // const char *headers[] = {"Host", "netsys.cs.colorado.edu"};
+    // http_make_request(&req, "GET", "/index.html", "HTTP/1.1", headers, 1);
+    // print_request(&req);
+    // printf("\n\n");
 
-    int sockcode;
-    int i;
-    response_t *resp = http_send_and_receive(
-        &req,
-        &sockcode,
-        content_callback,
-        &i,
-        5
-    );
+    pf_fetch("http://netsys.cs.colorado.edu/index.html", 20);
 
-    print_response(resp);
-
-    free_request(&req);
-    free_response(resp);
+    // free_request(&req);
 
     return 0;
 }

@@ -24,4 +24,9 @@ pthread_t prefetch_launch_thread(int cache_ttl);
  */
 void prefetch_enqueue(const url_t *url);
 
+
+// todo remove
+void pf_fetch(char *link, int ttl);
+vec_t pf_read_links(char *html);
+
 #endif

@@ -10,6 +10,16 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "Make test",
+            "type": "shell",
+            "command": "make test",
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }

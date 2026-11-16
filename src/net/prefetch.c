@@ -45,6 +45,26 @@ url_t *pfq_dequeue() {
     }
 }
 
+/** returns heap-allocated copy of a url_t */
+url_t *copy_url(const url_t *url) {
+    url_t *cpy = (url_t *)malloc(sizeof(url_t));
+    cpy->host = strclone(url->host);
+    cpy->host_len = url->host_len;
+    cpy->path = strclone(url->path);
+    cpy->path_len = url->path_len;
+    cpy->query = strclone(url->query);
+    cpy->query_len = url->query_len;
+    cpy->port = url->port;
+    return cpy;
+}
+
+void free_url_copy(url_t *url) {
+    free((char *)url->host);
+    free((char *)url->path);
+    free((char *)url->query);
+    free(url);
+}
+
 /**
  * Parses <a> tags in the given html and returns a vec of links.
  * 
@@ -69,7 +89,7 @@ typedef struct {
 
 httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len, void *ctx) {
     pf_fetch_callback_ctx_t *pfctx = (pf_fetch_callback_ctx_t *)ctx;
-    int chunk_i = pfctx->chunk_ctr;
+    int chunk_i = *pfctx->chunk_ctr;
     cache_entry_t *entry = pfctx->cache_entry;
     char *key = pfctx->cache_key;
 
@@ -83,6 +103,7 @@ httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len,
 
     // increment chunk counter
     (*pfctx->chunk_ctr)++;
+    return HTTP_OK;
 }
 
 /** Fetches the given link and puts it in the cache */
@@ -110,6 +131,7 @@ void pf_fetch(char *link, int ttl) {
 
     // Context for content callback
     cache_entry_t cache_entry;
+    init_cache_entry(&cache_entry);
     int chunk_ctr = 0;
     pf_fetch_callback_ctx_t ctx = {
         &chunk_ctr,
@@ -130,7 +152,8 @@ void pf_fetch(char *link, int ttl) {
     cache_close_entry(&cache_entry);
     free(cache_key);
     free_request(&request);
-    free_response(&response);
+    free_response(response);
+    free(response);
 }
 
 void *pf_thread_main(void *arg) {
@@ -156,25 +179,6 @@ pthread_t prefetch_launch_thread(int cache_ttl) {
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, pf_thread_main, ttl_ptr);
     return thread_id;
-}
-
-/** returns heap-allocated copy of a url_t */
-url_t *copy_url(const url_t *url) {
-    url_t *cpy = (url_t *)malloc(sizeof(url_t));
-    cpy->host = strclone(url->host);
-    cpy->host_len = url->host_len;
-    cpy->path = strclone(url->path);
-    cpy->path_len = url->path_len;
-    cpy->query = strclone(url->query);
-    cpy->query_len = url->query_len;
-    cpy->port = url->port;
-}
-
-void free_url_copy(url_t *url) {
-    free(url->host);
-    free(url->path);
-    free(url->query);
-    free(url);
 }
 
 void prefetch_enqueue(const url_t *url) {

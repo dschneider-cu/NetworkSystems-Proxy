@@ -29,6 +29,19 @@
             "externalConsole": false,
             "MIMode": "gdb",
             "preLaunchTask": "Make"
+        },
+        {
+            "name": "C/C++: Debug Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "preLaunchTask": "Make test"
         }
     ]
 }
