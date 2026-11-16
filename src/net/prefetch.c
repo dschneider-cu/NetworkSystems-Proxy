@@ -65,17 +65,77 @@ void free_url_copy(url_t *url) {
     free(url);
 }
 
+// State machine for the HTML parser
+typedef enum {
+    SEARCHING, // Searching for anchor tag
+    IN_TAG, // In anchor tag ("a ")
+    IN_ATTRIBUTES, // In attribute list
+    IN_HREF, // Inside quotes of href attribute (found a link!)
+    IN_COMMENT, // Inside "<!-- ..."
+    IN_COMMENT_CLOSE // Inside "-->"
+} html_state_t;
+
+/**
+ * State transitions (roughly)
+ * 
+ * SEARCHING --'<'--> IN_TAG
+ * SEARCHING --anything else--> SEARCHING
+ * 
+ * IN_TAG --token="a "--> IN_ATTRIBUTES
+ * IN_TAG --token="!--"--> IN_COMMENT
+ * IN_TAG --'>'--> SEARCHING
+ * 
+ * IN_ATTRIBUTES --token="href=\""--> IN_HREF
+ * IN_ATTRIBUTES --'>'--> SEARCHING
+ * 
+ * IN_HREF --'"'--> IN_ATTRIBUTES, export link
+ * 
+ * IN_COMMENT --'-'--> IN_COMMENT_CLOSE
+ * 
+ * IN_COMMENT_CLOSE --token="-->"--> SEARCHING
+ * IN_COMMENT_CLOSE --token_len>3--> IN_COMMENT
+ */
+
 /**
  * Parses <a> tags in the given html and returns a vec of links.
  * 
  * @param html HTML string to parse (will be mutated)
  * @return Vector of strings. Each string will be a pointer into `html`
  */
-vec_t pf_read_links(char *html) {
+vec_t pf_extract_links(char *html) {
     vec_t links;
     vec_init(&links);
     
-    // Parse html
+    char *end = html + strlen(html);
+    char *p = html; // current position
+    html_state_t state = SEARCHING;
+    const char *token;
+    int token_len = 0;
+
+    while (p) {
+        char c = *p;
+        p++; // consume character
+
+        switch (state) {
+        case SEARCHING:
+            if (c == '<') {
+                state = IN_TAG;
+                token = p;
+            }
+            break;
+        case IN_TAG:
+            break;
+        case IN_ATTRIBUTES:
+            break;
+        case IN_HREF:
+            break;
+        case IN_COMMENT:
+            break;
+        case IN_COMMENT_CLOSE:
+            break;
+        }
+
+    }
 
     return links;
 }
@@ -182,7 +242,7 @@ void *pf_thread_main(void *arg) {
         }
 
         // Parse HTML for links
-        vec_t links = pf_read_links(html);
+        vec_t links = pf_extract_links(html);
 
         // Fetch links & place in cache
         for (int i = 0; i < vec_size(&links); i++) {
