@@ -283,7 +283,7 @@ void proxy_handle_client(socket_t *client_sock, int cache_ttl) {
     vlog("Forwarded response content to client");
 
     /* -- Enqueue page to be prefetched -- */
-    // prefetch_enqueue(&url);
+    prefetch_enqueue(&url);
 
     /* -- Clean up resources -- */
     cleanup:
@@ -342,8 +342,8 @@ int main(int argc, char **argv) {
     blocklist = read_blocklist(BLOCKLIST_FILE);
 
     // Launch prefetcher thread
-    // pthread_t pf_thread_id = prefetch_launch_thread(cache_ttl);
-    // pthread_detach(pf_thread_id);
+    pthread_t pf_thread_id = prefetch_launch_thread(cache_ttl);
+    pthread_detach(pf_thread_id);
 
     while (true) {
         // Accept client socket

@@ -232,11 +232,7 @@ httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len,
 
     if (chunk_i == 0) {
         // First chunk - put response & first chunk in cache
-        int response_text_len;
-        char *response_text = http_make_response_text(response, &response_text_len);
-        cache_put(entry, key, response_text, response_text_len, ttl);
-        cache_append(entry, chunk, chunk_len);
-        free(response_text);
+        cache_put(entry, key, chunk, chunk_len, ttl);
     } else {
         // Subsequent chunks - append
         cache_append(entry, chunk, chunk_len);
@@ -278,7 +274,7 @@ char *resolve_relative_link(const char *link, const url_t *url) {
 void pf_fetch(const char *link, int ttl) {
     request_t request;
     http_make_request(&request, "GET", link, "HTTP/1.1", NULL, 0);
-
+    
     // Parse link
     url_t url;
     httpcode_t code = http_parse_url(&url, &request);
@@ -287,7 +283,7 @@ void pf_fetch(const char *link, int ttl) {
         free_request(&request);
         return;
     }
-
+    
     // Check if already in cache
     char *cache_key = make_cache_key(&url);
     if (cache_has(cache_key)) {
@@ -296,9 +292,10 @@ void pf_fetch(const char *link, int ttl) {
         free(cache_key);
         return;
     }
-
+    
     // Fix request path & Host header
     http_move_host_to_header(&request, &url);
+    print_request(&request);
 
     // Context for content callback
     cache_entry_t cache_entry;
@@ -319,6 +316,7 @@ void pf_fetch(const char *link, int ttl) {
         &ctx,
         PREFETCH_TIMEOUT_SEC
     );
+    print_response(response);
 
     cache_close_entry(&cache_entry);
     free(cache_key);

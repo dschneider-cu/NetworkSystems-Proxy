@@ -728,6 +728,12 @@ response_t *http_send_and_receive(
         return response;
     }
 
+    // Call content callback on response text
+    int response_text_len;
+    char *response_text = http_make_response_text(response, &response_text_len);
+    content_callback(response, response_text, response_text_len, ctx);
+    free(response_text);
+
     // Receive response content
     httpcode = http_receive_response_content(
         &server_reader,
