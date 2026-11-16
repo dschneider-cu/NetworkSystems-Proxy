@@ -228,10 +228,15 @@ httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len,
     int chunk_i = *pfctx->chunk_ctr;
     cache_entry_t *entry = pfctx->cache_entry;
     char *key = pfctx->cache_key;
+    int ttl = pfctx->ttl;
 
     if (chunk_i == 0) {
-        // First chunk - put in cache
-        cache_put(entry, key, chunk, chunk_len, pfctx->ttl);
+        // First chunk - put response & first chunk in cache
+        int response_text_len;
+        char *response_text = http_make_response_text(response, &response_text_len);
+        cache_put(entry, key, response_text, response_text_len, ttl);
+        cache_append(entry, chunk, chunk_len);
+        free(response_text);
     } else {
         // Subsequent chunks - append
         cache_append(entry, chunk, chunk_len);
