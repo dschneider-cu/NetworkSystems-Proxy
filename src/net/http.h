@@ -168,6 +168,16 @@ void http_set_response_header(response_t *response, const char *name, const char
 httpcode_t http_parse_url(url_t *out_url, const request_t *request);
 
 /**
+ * Appends a port to a host string. If port is HTTP or HTTPS, the returned string will be the same
+ * as `host`.
+ * 
+ * @param host host string
+ * @param port Port
+ * @return Heap-allocated host+port string
+ */
+char *http_get_host_with_port(const char *host, int port);
+
+/**
  * Adds a Host header if it doesn't exist. Removes the host and the 'http://' from the request path
  * if it's there. For example:
  * ```

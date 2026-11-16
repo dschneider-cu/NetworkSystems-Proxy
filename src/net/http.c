@@ -326,24 +326,31 @@ httpcode_t http_parse_url(url_t *out_url, const request_t *request) {
     return HTTP_OK;
 }
 
-void http_move_host_to_header(request_t *request, url_t *url) {
-    char *host = strnclone(url->host, url->host_len);
-    if (url->port != PORT_HTTP && url->port != PORT_HTTPS) {
+char *http_get_host_with_port(const char *host, int port) {
+    if (port != PORT_HTTP && port != PORT_HTTPS) {
         // Concatenate host, ":", and port
         char port_buf[PORT_MAX_DIGITS + 1];
-        if (!inttostr(url->port, port_buf)) {
-            elog("Error converting port to string: %d", url->port);
-            return;
+        if (!inttostr(port, port_buf)) {
+            elog("Error converting port to string: %d", port);
+            return NULL;
         }
         char *host_with_port = strconcat(host, ":", port_buf);
-        free(host);
-        host = host_with_port;
+        return host_with_port;
+    } else {
+        return strclone(host);
     }
-    http_set_request_header(request, "Host", host);
+}
+
+void http_move_host_to_header(request_t *request, url_t *url) {
+    char *host = strnclone(url->host, url->host_len);
+    char *host_with_port = http_get_host_with_port(host, url->port);
+    free(host);
+
+    http_set_request_header(request, "Host", host_with_port);
     // set_request_header makes a copy so we need to get the copy and set url->host to point to it
     // so we can free `host`
     url->host = http_get_request_header(request, "Host");
-    free(host);
+    free(host_with_port);
     
     char *path;
     if (url->query_len > 0) {

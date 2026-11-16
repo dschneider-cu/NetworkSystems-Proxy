@@ -240,6 +240,33 @@ httpcode_t pf_content_callback(response_t *response, char *chunk, int chunk_len,
     return HTTP_OK;
 }
 
+/**
+ * Resolves relative links, "/index.html" into full links, "http://example.com/index.html"
+ * Returns NULL if unchanged.
+ */
+char *resolve_relative_link(const char *link, const url_t *url) {
+    if (strstartswith(link, "http://") || strstartswith(link, "https://")) {
+        return NULL;
+    }
+
+    // Host with port
+    char *host = strnclone(url->host, url->host_len);
+    char *host_with_port = http_get_host_with_port(host, url->port);
+    if (host_with_port != host) {
+        free(host);
+        host = host_with_port;
+    }
+
+    // Join http, host
+    char *http_host = strconcat("http://", host);
+    free(host);
+    // Join http+host, link
+    char *result = path_join(http_host, link);
+    free(http_host);
+
+    return result;
+}
+
 /** Fetches the given link and puts it in the cache */
 void pf_fetch(const char *link, int ttl) {
     request_t request;

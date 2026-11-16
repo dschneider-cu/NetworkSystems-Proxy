@@ -127,8 +127,8 @@ bool cache_has(const char *key) {
     }
 
     // Read first line
-    char *buffer[TIME_MAX_DIGITS + 1];
-    if (!read_file_content(entry.file, buffer, TIME_MAX_DIGITS)) {
+    char buffer[TIME_MAX_DIGITS + 1];
+    if (!read_file_content(entry.file, (uint8_t *)buffer, TIME_MAX_DIGITS)) {
         return false;
     }
     buffer[TIME_MAX_DIGITS] = '\0';
