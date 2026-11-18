@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <unistd.h>
 #include "prefetch.h"
 #include "socket.h"
 #include "cache.h"
@@ -332,6 +333,7 @@ void *pf_thread_main(void *arg) {
     while (true) {
         url_t *url = pfq_dequeue();
         if (url == NULL) continue;
+        sleep(5);
 
         // Get HTML from cache entry
         cache_entry_t entry;
