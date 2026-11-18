@@ -216,7 +216,7 @@ char *cache_get(
     }
 
     // Check expiry
-    if (_current_time() > expiry) {
+    if (_current_time() >= expiry) {
         vlog("Cache entry is expired!");
         free(file_content);
         cache_close_entry(out_entry);
